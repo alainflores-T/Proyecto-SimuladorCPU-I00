@@ -44,6 +44,8 @@ function resetCPU() {
   sheet.getRange(REG_MDR).setValue("00H");
   sheet.getRange(REG_AX).setValue("00H");
   sheet.getRange(REG_BX).setValue("00H");
+    sheet.getRange(REG_CX).setValue("00H");
+  sheet.getRange(REG_DX).setValue("00H");
   
   // Limpiar Flags
   sheet.getRange(FLAG_ZF).setValue(0);
@@ -217,21 +219,18 @@ function faseExecute(sheet) {
   }
   
   // 2. Operaciones de ALU (ADD, SUB, MOV, INC, DEC, CMP)
-  else if (["ADD", "SUB", "MOV", "INC", "DEC", "CMP"].indexOf(inst.op) !== -1) {
-    var valOrigen = (src === "BX") ? valBX : ((src === "AX") ? valAX : src);
-    var valDestino = (dest === "BX") ? valBX : valAX;
-    
-    // Cálculo del resultado invocando a la ALU
+   else if (["ADD", "SUB", "MOV", "INC", "DEC", "CMP"].indexOf(inst.op) !== -1) {
+    if (!esRegistro(dest)) {
+      registrarLog(sheet, "ERROR: destino inválido '" + dest + "' (usa AX, BX, CX o DX)");
+      return;
+    }
+    var valOrigen  = obtenerOperando(sheet, src);
+    var valDestino = leerRegistro(sheet, dest);
+
     var resultado = ejecutarALU(sheet, inst.op, valDestino, valOrigen);
-    
+
     if (inst.op !== "CMP") {
-      if (dest === "AX") {
-        sheet.getRange(REG_AX).setValue(resultado);
-        resaltarCelda(sheet, REG_AX, "#C8E6C9");
-      } else if (dest === "BX") {
-        sheet.getRange(REG_BX).setValue(resultado);
-        resaltarCelda(sheet, REG_BX, "#C8E6C9");
-      }
+      escribirRegistro(sheet, dest, resultado);
     }
   }
   
@@ -251,12 +250,8 @@ function faseExecute(sheet) {
     Utilities.sleep(800);
     
     // Paso 3: Enviar el dato del MDR al registro de destino
-    if (dest === "AX") {
-      sheet.getRange(REG_AX).setValue(datoRAM);
-      resaltarCelda(sheet, REG_AX, "#C8E6C9");
-    } else if (dest === "BX") {
-      sheet.getRange(REG_BX).setValue(datoRAM);
-      resaltarCelda(sheet, REG_BX, "#C8E6C9");
+       if (esRegistro(dest)) {
+      escribirRegistro(sheet, dest, datoRAM);
     }
   }
   
