@@ -5,7 +5,8 @@ const SHEET_NAME = "Hoja 1";
 const LOG_SHEET_NAME = "LOG"; // Asegúrate de que el nombre coincida exactamente con la pestaña creada
 // Celdas de Registros (Columna Decimal, Hex o Binario según preferencia)
 const REG_PC   = "C16";  // Ajusta según la celda real de tu tabla PC
-const REG_IR   = "C17";  
+const REG_IR   = "C17";
+const REG_IR_MAQ = "E17"; // IR en código máquina  
 const REG_MAR  = "C18";  
 const REG_MDR  = "C19";  
 const REG_AX   = "C20";  

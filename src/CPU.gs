@@ -40,6 +40,7 @@ function resetCPU() {
   // Limpiar Registros
   sheet.getRange(REG_PC).setValue("00H");
   sheet.getRange(REG_IR).setValue("00H");
+  sheet.getRange(REG_IR_MAQ).setValue("");
   sheet.getRange(REG_MAR).setValue("00H");
   sheet.getRange(REG_MDR).setValue("00H");
   sheet.getRange(REG_AX).setValue("00H");
@@ -135,6 +136,7 @@ function faseFetch3(sheet) {
   var pcVal  = sheet.getRange(REG_PC).getValue();
 
   sheet.getRange(REG_IR).setValue(mdrVal);
+  sheet.getRange(REG_IR_MAQ).setValue("'" + codificarInstruccion(mdrVal));
   resaltarCelda(sheet, REG_IR, "#C8E6C9");
   SpreadsheetApp.flush();
  Utilities.sleep(800);
@@ -155,7 +157,7 @@ function faseDecode(sheet) {
   var dest = inst.dest ? inst.dest : "Ninguno";
   var src = inst.src ? inst.src : "Ninguno";
   
-  registrarLogDetallado(sheet, "Decodificación: Operación " + op + " sobre destino " + dest + " con origen " + src);
+  registrarLogDetallado(sheet, "Decodificación: " + op + " (código máquina " + codificarInstruccion(irVal) + ") sobre destino " + dest + " con origen " + src);
 }
 
 function faseExecute(sheet) {
