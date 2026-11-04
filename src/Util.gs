@@ -1,6 +1,6 @@
 function limpiarFondoRegistros(sheet) {
   // 1. Limpia registros principales y banderas
-  var celdasRegistros = [REG_PC, REG_IR, REG_MAR, REG_MDR, REG_AX, REG_BX, FLAG_ZF, FLAG_CF, FLAG_SF];
+  var celdasRegistros = [REG_PC, REG_IR, REG_MAR, REG_MDR, REG_AX, REG_BX, REG_CX, REG_DX, FLAG_ZF, FLAG_CF, FLAG_SF];
   for (var i = 0; i < celdasRegistros.length; i++) {
     sheet.getRange(celdasRegistros[i]).setBackground(null);
   }
@@ -29,6 +29,8 @@ function registrarLogDetallado(sheet, explicacion) {
   var mdr      = sheet.getRange(REG_MDR).getValue();
   var ax       = sheet.getRange(REG_AX).getValue();
   var bx       = sheet.getRange(REG_BX).getValue();
+  var cx       = sheet.getRange(REG_CX).getValue();
+  var dx       = sheet.getRange(REG_DX).getValue();
   
   var aluOp1   = sheet.getRange(ALU_OP1).getValue();
   var aluOp2   = sheet.getRange(ALU_OP2).getValue();
@@ -47,7 +49,7 @@ function registrarLogDetallado(sheet, explicacion) {
     horaActual,
     estado,
     explicacion,
-    pc, ir, mar, mdr, ax, bx,
+    pc, ir, mar, mdr, ax, bx, cx, dx,
     aluOp1, aluOp2, aluSym, aluRes,
     zf, cf, sf
   ]);
@@ -63,7 +65,7 @@ function limpiarHojaHistorial() {
   
   var ultimaFila = hojaHistorial.getLastRow();
   if (ultimaFila > 1) {
-    hojaHistorial.getRange(2, 1, ultimaFila - 1, 16).clearContent();
+      hojaHistorial.getRange(2, 1, ultimaFila - 1, 18).clearContent();
   }
 }
 
@@ -110,6 +112,8 @@ function crearEstructuraHistorial() {
     "MDR",
     "AX",
     "BX",
+	"CX",
+    "DX",
     "ALU Operando 1",
     "ALU Operando 2",
     "ALU Operación",
@@ -120,7 +124,7 @@ function crearEstructuraHistorial() {
   ]];
   
   // Escribir los encabezados en la Fila 1
-  var rangoEncabezado = hojaHistorial.getRange(1, 1, 1, 16);
+  var rangoEncabezado = hojaHistorial.getRange(1, 1, 1, 18);
   rangoEncabezado.setValues(encabezados);
   
   // Dar formato visual profesional a la cabecera
@@ -136,7 +140,7 @@ function crearEstructuraHistorial() {
   hojaHistorial.setColumnWidth(1, 90);   // Hora
   hojaHistorial.setColumnWidth(2, 120);  // Ciclo / Estado
   hojaHistorial.setColumnWidth(3, 350);  // Acción Realizada (Más ancha para la explicación)
-  for (var c = 4; c <= 16; c++) {
+    for (var c = 4; c <= 18; c++) {
     hojaHistorial.setColumnWidth(c, 100); // Resto de columnas de registros y ALU
   }
   
@@ -188,7 +192,7 @@ function cambiarFormatoRegistros(formatoDestino) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   
   // Agregamos las celdas de la ALU (ALU_OP1, ALU_OP2, ALU_RES) a la lista para que cambien junto a los registros
-  var registrosNumericos = [/*REG_PC,*/ /*REG_MAR,*/ REG_MDR, REG_AX, REG_BX, ALU_OP1, ALU_OP2, ALU_RES]; 
+    var registrosNumericos = [REG_MDR, REG_AX, REG_BX, REG_CX, REG_DX, ALU_OP1, ALU_OP2, ALU_RES]; 
   
   for (var i = 0; i < registrosNumericos.length; i++) {
     var celda = sheet.getRange(registrosNumericos[i]);
