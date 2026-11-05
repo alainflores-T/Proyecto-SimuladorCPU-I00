@@ -221,7 +221,7 @@ function faseExecute(sheet) {
   }
   
   // 2. Operaciones de ALU (ADD, SUB, MOV, INC, DEC, CMP)
-   else if (["ADD", "SUB", "MOV", "INC", "DEC", "CMP"].indexOf(inst.op) !== -1) {
+   else if (["ADD", "SUB", "MOV", "INC", "DEC", "CMP","AND","OR"].indexOf(inst.op) !== -1) {
     if (!esRegistro(dest)) {
       registrarLog(sheet, "ERROR: destino inválido '" + dest + "' (usa AX, BX, CX o DX)");
       return;
@@ -239,13 +239,14 @@ function faseExecute(sheet) {
 // 3. Leer dato de RAM a Registro (Paso a Paso)
   else if (inst.op === "LD" || inst.op === "LOAD") {
     // Paso 1: MAR recibe la dirección de origen
-    sheet.getRange(REG_MAR).setValue(src);
+	var dirOrigen = limpiarDireccion(src);
+    sheet.getRange(REG_MAR).setValue(dirOrigen);
     resaltarCelda(sheet, REG_MAR, "#C8E6C9");
     SpreadsheetApp.flush();
     Utilities.sleep(800);
     
     // Paso 2: Extraer dato y cargar al MDR
-    var datoRAM = obtenerDatoRAM(sheet, src);
+    var datoRAM = obtenerDatoRAM(sheet, dirOrigen);
     sheet.getRange(REG_MDR).setValue(datoRAM);
     resaltarCelda(sheet, REG_MDR, "#FFF59D");
     SpreadsheetApp.flush();
@@ -258,11 +259,16 @@ function faseExecute(sheet) {
   }
   
 // 4. Guardar dato de Registro en RAM (Paso a Paso)
-  else if (inst.op === "ST" || inst.op === "STORE") {
-    var valGuardar = (src === "BX") ? valBX : valAX;
+    else if (inst.op === "ST" || inst.op === "STORE") {
+    if (!src) {
+      registrarLog(sheet, "ERROR: ST necesita un origen (registro o valor)");
+      return;
+    }
+    var dirDestino = limpiarDireccion(dest);
+    var valGuardar = obtenerOperando(sheet, src); // registro o inmediato
     
     // Paso 1: MAR recibe la dirección de destino
-    sheet.getRange(REG_MAR).setValue(dest);
+    sheet.getRange(REG_MAR).setValue(dirDestino);
     resaltarCelda(sheet, REG_MAR, "#C8E6C9");
     SpreadsheetApp.flush();
     Utilities.sleep(800);
@@ -274,7 +280,7 @@ function faseExecute(sheet) {
     Utilities.sleep(800);
     
     // Paso 3: La celda de RAM recibe el valor grabado en MDR
-    var celdaRAM = obtenerCeldaRAM(dest);
+    var celdaRAM = obtenerCeldaRAM(dirDestino);
     if (celdaRAM) {
       celdaRAM.setValue(valGuardar);
       celdaRAM.setBackground("#C8E6C9");
