@@ -66,6 +66,9 @@ function resetCPU() {
   
   // Limpiar Estado
   sheet.getRange(CPU_STATE).setValue("READY");
+  
+  inicializarPanelBuses(sheet);
+  resetearBuses(sheet);
 }
 
 function stepCPU() {
@@ -108,43 +111,35 @@ function stepCPU() {
 // Ejemplo en faseFetch1
 function faseFetch1(sheet) {
   sheet.getRange(CPU_STATE).setValue("FETCH_1");
-  var pcVal = sheet.getRange(REG_PC).getValue();
-  sheet.getRange(REG_MAR).setValue(pcVal);
-
+  var pcVal = transferInterna(sheet, "PC", ["MAR"]);
   resaltarCelda(sheet, REG_MAR, "#C8E6C9");
-  
-  // Usar el registro detallado
-  registrarLogDetallado(sheet, "Paso del PC (" + pcVal + ") al registro de direcciones MAR");
+  registrarLogDetallado(sheet, "Bus interno: PC (" + pcVal + ") → MAR");
 }
 
-// Ejemplo en faseFetch2
 function faseFetch2(sheet) {
   sheet.getRange(CPU_STATE).setValue("FETCH_2");
   var marVal = sheet.getRange(REG_MAR).getValue();
-  var datoRAM = obtenerDatoRAM(sheet, marVal);
-
-  sheet.getRange(REG_MDR).setValue(datoRAM);
+  var datoRAM = transferLecturaMemoria(sheet);
   resaltarCelda(sheet, REG_MDR, "#FFF59D");
-  
-  registrarLogDetallado(sheet, "Lectura de RAM en dirección " + marVal + ": Dato obtenido " + datoRAM);
+  registrarLogDetallado(sheet, "Bus externo: lectura RAM[" + marVal + "] → MDR (" + datoRAM + ")");
 }
 
-// Ejemplo en faseFetch3
 function faseFetch3(sheet) {
   sheet.getRange(CPU_STATE).setValue("FETCH_3");
-  var mdrVal = sheet.getRange(REG_MDR).getValue();
-  var pcVal  = sheet.getRange(REG_PC).getValue();
-
-  sheet.getRange(REG_IR).setValue(mdrVal);
+  var mdrVal = transferInterna(sheet, "MDR", ["IR"]);
   sheet.getRange(REG_IR_MAQ).setValue("'" + codificarInstruccion(mdrVal));
   resaltarCelda(sheet, REG_IR, "#C8E6C9");
   SpreadsheetApp.flush();
- Utilities.sleep(800);
+  Utilities.sleep(800);
 
+  var pcVal = sheet.getRange(REG_PC).getValue();
   incrementarPC(sheet, pcVal);
+  busInterno.driver = "ALU";
+  busInterno.value = sheet.getRange(REG_PC).getValue();
+  mostrarBuses(sheet);
   resaltarCelda(sheet, REG_PC, "#BBDEFB");
-  
-  registrarLogDetallado(sheet, "Carga de instrucción al registro IR y avance del contador de programa PC");
+
+  registrarLogDetallado(sheet, "Bus interno: MDR → IR y avance del PC");
 }
 
 // Ejemplo en faseDecode
@@ -159,134 +154,129 @@ function faseDecode(sheet) {
   
   registrarLogDetallado(sheet, "Decodificación: " + op + " (código máquina " + codificarInstruccion(irVal) + ") sobre destino " + dest + " con origen " + src);
 }
+function fuenteDesdeOperando(sheet, operando) {
+  var op = String(operando || "").toUpperCase().trim();
+  if (esRegistro(op)) {
+    return leerFuente(sheet, op);
+  }
+  return { name: "IR", value: operando };
+}
 
+function intentarSalto(sheet, nombre, tomado, destino) {
+  if (tomado) {
+    transferInterna(sheet, { name: "IR", value: destino }, ["PC"]);
+    resaltarCelda(sheet, REG_PC, "#BBDEFB");
+    if (nombre === "JMP") {
+      registrarLog(sheet, "EXECUTE: Salto incondicional a " + destino);
+    } else {
+      registrarLog(sheet, "EXECUTE: Salto (" + nombre + ") tomado a " + destino);
+    }
+  } else {
+    registrarLog(sheet, "EXECUTE: Salto (" + nombre + ") ignorado");
+  }
+}
 function faseExecute(sheet) {
   var irVal = sheet.getRange(REG_IR).getValue();
   var inst = decodificarInstruccion(irVal);
-  
+
   if (inst.op === "HLT") {
     sheet.getRange(CPU_STATE).setValue("HALT");
     registrarLog(sheet, "EXECUTE: HLT - Programa finalizado");
     return;
   }
-  
+
   sheet.getRange(CPU_STATE).setValue("EXECUTE");
-  
+
   if (inst.op === "NOP") {
     registrarLog(sheet, "EXECUTE: NOP (Celda vacía, ignorada)");
     return;
   }
-  
+
   var dest = (inst.dest || "").trim().toUpperCase();
   var src  = (inst.src || "").trim().toUpperCase();
-  
-  var valAX = sheet.getRange(REG_AX).getValue();
-  var valBX = sheet.getRange(REG_BX).getValue();
-  
-  // 1. Saltos (Control de Flujo)
+
+  // 1. Saltos: la dirección viaja por el bus interno hacia el PC
   if (inst.op === "JMP") {
-    sheet.getRange(REG_PC).setValue(dest);
-    registrarLog(sheet, "EXECUTE: Salto incondicional a " + dest);
+    intentarSalto(sheet, "JMP", true, dest);
     return;
   }
-  else if (inst.op === "JZ") {
-    var zf = sheet.getRange(FLAG_ZF).getValue();
-    if (zf == 1) {
-      sheet.getRange(REG_PC).setValue(dest);
-      registrarLog(sheet, "EXECUTE: Salto (JZ) tomado a " + dest);
-    } else {
-      registrarLog(sheet, "EXECUTE: Salto (JZ) ignorado (ZF=0)");
-    }
-    return; 
-  }
-  else if (inst.op === "JNZ") {
-    var zf = sheet.getRange(FLAG_ZF).getValue();
-    if (zf == 0) {
-      sheet.getRange(REG_PC).setValue(dest);
-      registrarLog(sheet, "EXECUTE: Salto (JNZ) tomado a " + dest);
-    } else {
-      registrarLog(sheet, "EXECUTE: Salto (JNZ) ignorado (ZF=1)");
-    }
+  if (inst.op === "JZ") {
+    intentarSalto(sheet, "JZ", sheet.getRange(FLAG_ZF).getValue() == 1, dest);
     return;
   }
-  else if (inst.op === "JC") {
-    var cf = sheet.getRange(FLAG_CF).getValue();
-    if (cf == 1) sheet.getRange(REG_PC).setValue(dest);
+  if (inst.op === "JNZ") {
+    intentarSalto(sheet, "JNZ", sheet.getRange(FLAG_ZF).getValue() == 0, dest);
     return;
   }
-  else if (inst.op === "JS") {
-    var sf = sheet.getRange(FLAG_SF).getValue();
-    if (sf == 1) sheet.getRange(REG_PC).setValue(dest);
+  if (inst.op === "JC") {
+    intentarSalto(sheet, "JC", sheet.getRange(FLAG_CF).getValue() == 1, dest);
     return;
   }
-  
-  // 2. Operaciones de ALU (ADD, SUB, MOV, INC, DEC, CMP)
-   else if (["ADD", "SUB", "MOV", "INC", "DEC", "CMP","AND","OR"].indexOf(inst.op) !== -1) {
+  if (inst.op === "JS") {
+    intentarSalto(sheet, "JS", sheet.getRange(FLAG_SF).getValue() == 1, dest);
+    return;
+  }
+
+  // 2. ALU: el cálculo sigue igual; el resultado se escribe por el bus interno
+  if (["ADD", "SUB", "MOV", "INC", "DEC", "CMP", "AND", "OR"].indexOf(inst.op) !== -1) {
     if (!esRegistro(dest)) {
       registrarLog(sheet, "ERROR: destino inválido '" + dest + "' (usa AX, BX, CX o DX)");
       return;
     }
-    var valOrigen  = obtenerOperando(sheet, src);
+
+    var fuente = fuenteDesdeOperando(sheet, src);
     var valDestino = leerRegistro(sheet, dest);
+    var resultado = ejecutarALU(sheet, inst.op, valDestino, fuente.value);
 
-    var resultado = ejecutarALU(sheet, inst.op, valDestino, valOrigen);
-
-    if (inst.op !== "CMP") {
-      escribirRegistro(sheet, dest, resultado);
+    if (inst.op === "MOV") {
+      transferInterna(sheet, { name: fuente.name, value: resultado }, [dest]);
+    } else if (inst.op !== "CMP") {
+      transferInterna(sheet, { name: "ALU", value: resultado }, [dest]);
+    } else {
+      transferInterna(sheet, { name: "ALU", value: resultado }, []);
     }
   }
-  
-// 3. Leer dato de RAM a Registro (Paso a Paso)
+
+  // 3. LD: interno (dir → MAR), externo (RAM → MDR), interno (MDR → registro)
   else if (inst.op === "LD" || inst.op === "LOAD") {
-    // Paso 1: MAR recibe la dirección de origen
-	var dirOrigen = limpiarDireccion(src);
-    sheet.getRange(REG_MAR).setValue(dirOrigen);
+    var dirOrigen = limpiarDireccion(src);
+    transferInterna(sheet, { name: "IR", value: dirOrigen }, ["MAR"]);
     resaltarCelda(sheet, REG_MAR, "#C8E6C9");
     SpreadsheetApp.flush();
-    Utilities.sleep(800);
-    
-    // Paso 2: Extraer dato y cargar al MDR
-    var datoRAM = obtenerDatoRAM(sheet, dirOrigen);
-    sheet.getRange(REG_MDR).setValue(datoRAM);
+    Utilities.sleep(400);
+
+    var datoRAM = transferLecturaMemoria(sheet);
     resaltarCelda(sheet, REG_MDR, "#FFF59D");
     SpreadsheetApp.flush();
-    Utilities.sleep(800);
-    
-    // Paso 3: Enviar el dato del MDR al registro de destino
-       if (esRegistro(dest)) {
-      escribirRegistro(sheet, dest, datoRAM);
+    Utilities.sleep(400);
+
+    if (esRegistro(dest)) {
+      transferInterna(sheet, "MDR", [dest]);
     }
   }
-  
-// 4. Guardar dato de Registro en RAM (Paso a Paso)
-    else if (inst.op === "ST" || inst.op === "STORE") {
+
+  // 4. ST: interno (dir → MAR), interno (dato → MDR), externo (MDR → RAM)
+  else if (inst.op === "ST" || inst.op === "STORE") {
     if (!src) {
       registrarLog(sheet, "ERROR: ST necesita un origen (registro o valor)");
       return;
     }
     var dirDestino = limpiarDireccion(dest);
-    var valGuardar = obtenerOperando(sheet, src); // registro o inmediato
-    
-    // Paso 1: MAR recibe la dirección de destino
-    sheet.getRange(REG_MAR).setValue(dirDestino);
+    var fuenteDato = fuenteDesdeOperando(sheet, src);
+
+    transferInterna(sheet, { name: "IR", value: dirDestino }, ["MAR"]);
     resaltarCelda(sheet, REG_MAR, "#C8E6C9");
     SpreadsheetApp.flush();
-    Utilities.sleep(800);
-    
-    // Paso 2: MDR almacena el dato a escribir en RAM
-    sheet.getRange(REG_MDR).setValue(valGuardar);
+    Utilities.sleep(400);
+
+    transferInterna(sheet, fuenteDato, ["MDR"]);
     resaltarCelda(sheet, REG_MDR, "#FFF59D");
     SpreadsheetApp.flush();
-    Utilities.sleep(800);
-    
-    // Paso 3: La celda de RAM recibe el valor grabado en MDR
-    var celdaRAM = obtenerCeldaRAM(dirDestino);
-    if (celdaRAM) {
-      celdaRAM.setValue(valGuardar);
-      celdaRAM.setBackground("#C8E6C9");
-    }
+    Utilities.sleep(400);
+
+    transferEscrituraMemoria(sheet);
   }
-  
+
   registrarLog(sheet, "EXECUTE: " + inst.op + " completado");
 }
 
