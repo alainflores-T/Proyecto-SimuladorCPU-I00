@@ -17,3 +17,8 @@ function escribirRegistro(sheet, nombre, valor) {
 function obtenerOperando(sheet, operando) {
   return esRegistro(operando) ? leerRegistro(sheet, operando) : operando;
 }
+
+// Quita los corchetes de una dirección: "[30H]" -> "30H"
+function limpiarDireccion(operando) {
+  return String(operando).replace(/[\[\]]/g, "").trim();
+}

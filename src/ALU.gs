@@ -25,6 +25,8 @@ function ejecutarALU(sheet, op, val1, val2) {
     case "INC": resultado = v1 + 1; simbolo = "+"; break;
     case "DEC": resultado = v1 - 1; simbolo = "-"; break;
     case "CMP": resultado = v1 - v2; simbolo = "CMP"; break;
+	case "AND": resultado = v1 & v2; simbolo = "AND"; break;
+    case "OR":  resultado = v1 | v2; simbolo = "OR";  break;
   }
   
   // Imprimir operadores en la interfaz de la ALU

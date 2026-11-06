@@ -31,8 +31,10 @@ const OPCODES = {
   "NOP": 0x00, "MOV": 0x01, "ADD": 0x02, "SUB": 0x03, "INC": 0x04,
   "DEC": 0x05, "CMP": 0x06, "LD": 0x07, "LOAD": 0x07, "ST": 0x08,
   "STORE": 0x08, "JMP": 0x09, "JZ": 0x0A, "JNZ": 0x0B, "JC": 0x0C,
-  "JS": 0x0D, "HLT": 0xFF
+  "JS": 0x0D, "AND": 0x0E, "OR": 0x0F, "IN": 0x20, "OUT": 0x21,
+  "HLT": 0xFF
 };
+const PORT_CODES = { "KBD": 0x00, "LCD": 0x01 };
 const REG_CODES = { "AX": 0x00, "BX": 0x01, "CX": 0x02, "DX": 0x03 };
 const FLAG_INMEDIATO = 0x10; // se suma al opcode si el origen es un valor
 
@@ -40,18 +42,25 @@ function aHex2(n) {
   return (n & 0xFF).toString(16).toUpperCase().padStart(2, '0');
 }
 
-// Devuelve {valor, esInmediato} o null si no hay operando
 function codificarOperando(operando) {
   if (!operando) return null;
-  if (REG_CODES.hasOwnProperty(operando)) {
-    return { valor: REG_CODES[operando], esInmediato: false };
-  }
+  var limpio = limpiarDireccion(operando);
+  if (REG_CODES.hasOwnProperty(limpio))  return { valor: REG_CODES[limpio],  esInmediato: false };
+  if (PORT_CODES.hasOwnProperty(limpio)) return { valor: PORT_CODES[limpio], esInmediato: false };
+
+  var esDireccion = operando.indexOf("[") !== -1;
   var n;
-  if (operando.endsWith("H")) n = parseInt(operando.slice(0, -1), 16);
-  else if (operando.endsWith("B")) n = parseInt(operando.slice(0, -1), 2);
-  else n = parseInt(operando, 10);
+  if (limpio.endsWith("H")) n = parseInt(limpio.slice(0, -1), 16);
+  else if (limpio.endsWith("B")) n = parseInt(limpio.slice(0, -1), 2);
+  else n = parseInt(limpio, 10);
   if (isNaN(n)) return null;
-  return { valor: n, esInmediato: true };
+  return { valor: n, esInmediato: !esDireccion };
+}
+
+// Direcciones de 9 bits (000H-1FFH) ocupan 2 bytes
+function agregarBytes(bytes, operando) {
+  if (operando.valor > 0xFF) bytes.push(aHex2(operando.valor >> 8));
+  bytes.push(aHex2(operando.valor));
 }
 
 function codificarInstruccion(codigoIR) {
@@ -61,10 +70,11 @@ function codificarInstruccion(codigoIR) {
 
   var d = codificarOperando(inst.dest);
   var s = codificarOperando(inst.src);
-  if (s && s.esInmediato) opcode += FLAG_INMEDIATO;
+  // En LD el origen siempre es una dirección, nunca un inmediato
+  if (s && s.esInmediato && inst.op !== "LD" && inst.op !== "LOAD") opcode += FLAG_INMEDIATO;
 
   var bytes = [aHex2(opcode)];
-  if (d) bytes.push(aHex2(d.valor));
-  if (s) bytes.push(aHex2(s.valor));
+  if (d) agregarBytes(bytes, d);
+  if (s) agregarBytes(bytes, s);
   return bytes.join(" ");
 }
