@@ -133,6 +133,85 @@ function catalogCrearEntrada(id, nombre, descripcion, fuenteLineas, estado) {
 }
 
 /**
+ * Migra los 5 programas sueltos de la hoja Programas (columnas A,H,K,O,R).
+ * Asunciones documentadas:
+ *  - Col A filas 2.. = Programa 1 (acceso memoria / carry), encabezado en A1.
+ *  - Col H filas 3.. = Programa 2 (acumulador con bucle DEC/JNZ).
+ *  - Col K filas 3.. = Programa 3 (contador INC/CMP).
+ *  - Col O filas 3.. = Programa 4 (CMP y store).
+ *  - Col R filas 3.. = Programa 5 (comparación con dos HLT).
+ * Se adaptan saltos absolutos por índice a etiquetas cuando es obvio.
+ */
+function catalogProgramasMigradosPorDefecto() {
+  return [
+    catalogCrearEntrada(1, "carry-memoria",
+      "Carga AX/BX desde 80H/81H, suma, salta si carry; escribe resultado.",
+      [
+        "; Migrado de Programas!A (índices → etiquetas)",
+        "inicio:",
+        "  LD AX, [80H]",
+        "  LD BX, [81H]",
+        "  ADD AX, BX",
+        "  JC fin",
+        "  ST [80H], BX",
+        "  ST [80H], AX",
+        "  JMP inicio",
+        "fin:",
+        "  HLT"
+      ], "Borrador"),
+    catalogCrearEntrada(2, "acumulador-bucle",
+      "Suma 03H cuatro veces en AX usando DEC/JNZ; guarda en 20H.",
+      [
+        "; Migrado de Programas!H",
+        "  MOV AX, 00H",
+        "  MOV BX, 04H",
+        "bucle:",
+        "  ADD AX, 03H",
+        "  DEC BX",
+        "  JNZ bucle",
+        "  ST [20H], AX",
+        "  HLT"
+      ], "Borrador"),
+    catalogCrearEntrada(3, "contador-cinco",
+      "Incrementa AX hasta 5 y lo guarda en 20H.",
+      [
+        "; Migrado de Programas!K",
+        "  MOV AX, 00H",
+        "loop:",
+        "  INC AX",
+        "  CMP AX, 05H",
+        "  JNZ loop",
+        "  ST [20H], AX",
+        "  HLT"
+      ], "Borrador"),
+    catalogCrearEntrada(4, "cmp-store",
+      "Compara AX=03H con BX=08H y almacena AX en 20H.",
+      [
+        "; Migrado de Programas!O",
+        "  MOV AX, 03H",
+        "  MOV BX, 08H",
+        "  CMP AX, BX",
+        "  ST [20H], AX",
+        "  HLT"
+      ], "Borrador"),
+    catalogCrearEntrada(5, "cmp-doble-hlt",
+      "Si AX==[10H] escribe 00H; si no, FFH. Dos salidas HLT.",
+      [
+        "; Migrado de Programas!R",
+        "  MOV AX, 0AH",
+        "  LD BX, [10H]",
+        "  CMP AX, BX",
+        "  JZ iguales",
+        "  ST [30H], 00H",
+        "  HLT",
+        "iguales:",
+        "  ST [30H], FFH",
+        "  HLT"
+      ], "Borrador")
+  ];
+}
+
+/**
  * Serializa entradas a filas de tabla (sin fuente).
  */
 function catalogEntradasAFilas(entradas) {
