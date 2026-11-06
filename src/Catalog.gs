@@ -133,6 +133,85 @@ function catalogCreateEntry(id, name, description, sourceLines, status) {
 }
 
 /**
+ * Migrates the 5 loose programs from the Programas sheet (columns A, H, K, O, R).
+ * Documented assumptions:
+ *  - Col A rows 2.. = Program 1 (memory access / carry), header in A1.
+ *  - Col H rows 3.. = Program 2 (accumulator with a DEC/JNZ loop).
+ *  - Col K rows 3.. = Program 3 (INC/CMP counter).
+ *  - Col O rows 3.. = Program 4 (CMP and store).
+ *  - Col R rows 3.. = Program 5 (compare with two HLT exits).
+ * Absolute index jumps are rewritten as labels when obvious.
+ */
+function catalogDefaultMigratedPrograms() {
+  return [
+    catalogCreateEntry(1, "carry-memory",
+      "Loads AX/BX from 80H/81H, adds, branches on carry; writes the result.",
+      [
+        "; Migrated from Programas!A (indexes -> labels)",
+        "start:",
+        "  LD AX, [80H]",
+        "  LD BX, [81H]",
+        "  ADD AX, BX",
+        "  JC end",
+        "  ST [80H], BX",
+        "  ST [80H], AX",
+        "  JMP start",
+        "end:",
+        "  HLT"
+      ], "Draft"),
+    catalogCreateEntry(2, "accumulator-loop",
+      "Adds 03H four times into AX using DEC/JNZ; stores at 20H.",
+      [
+        "; Migrated from Programas!H",
+        "  MOV AX, 00H",
+        "  MOV BX, 04H",
+        "loop:",
+        "  ADD AX, 03H",
+        "  DEC BX",
+        "  JNZ loop",
+        "  ST [20H], AX",
+        "  HLT"
+      ], "Draft"),
+    catalogCreateEntry(3, "counter-five",
+      "Increments AX until 5 and stores it at 20H.",
+      [
+        "; Migrated from Programas!K",
+        "  MOV AX, 00H",
+        "loop:",
+        "  INC AX",
+        "  CMP AX, 05H",
+        "  JNZ loop",
+        "  ST [20H], AX",
+        "  HLT"
+      ], "Draft"),
+    catalogCreateEntry(4, "cmp-store",
+      "Compares AX=03H with BX=08H and stores AX at 20H.",
+      [
+        "; Migrated from Programas!O",
+        "  MOV AX, 03H",
+        "  MOV BX, 08H",
+        "  CMP AX, BX",
+        "  ST [20H], AX",
+        "  HLT"
+      ], "Draft"),
+    catalogCreateEntry(5, "cmp-double-hlt",
+      "If AX==[10H] writes 00H; otherwise FFH. Two HLT exits.",
+      [
+        "; Migrated from Programas!R",
+        "  MOV AX, 0AH",
+        "  LD BX, [10H]",
+        "  CMP AX, BX",
+        "  JZ equal",
+        "  ST [30H], 00H",
+        "  HLT",
+        "equal:",
+        "  ST [30H], FFH",
+        "  HLT"
+      ], "Draft")
+  ];
+}
+
+/**
  * Serializes entries to table rows (without source).
  */
 function catalogEntriesToRows(entries) {
