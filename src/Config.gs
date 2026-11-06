@@ -47,3 +47,19 @@ const ALU_RES = "D45"; // Celda del Resultado
 /*const LOG_COL = 15;         
 const LOG_START_ROW = 30;   
 const LOG_END_ROW = 45;*/
+
+// --- Panel de buses (Hoja 1, al lado de los registros) ---
+// Si J15:K26 ya tiene algo, avísame y movemos el panel.
+const BUS_INT_VAL    = "K16"; // valor del bus interno
+const BUS_INT_DRIVER = "K17"; // quién conduce el bus interno
+
+const BUS_EXT_ADDR   = "K19"; // Address bus (HEX)
+const BUS_EXT_DATA   = "K20"; // Data bus (HEX o ZZ)
+const BUS_EXT_DRIVER = "K21"; // quién conduce el bus de datos
+
+const BUS_CTRL_RD    = "K23"; // Read  0/1
+const BUS_CTRL_WR    = "K24"; // Write 0/1
+const BUS_CTRL_CLK   = "K25"; // Clock 0/1
+const BUS_CTRL_IO    = "K26"; // IO    0/1
+
+const BUS_ALTA_Z     = "ZZ";
