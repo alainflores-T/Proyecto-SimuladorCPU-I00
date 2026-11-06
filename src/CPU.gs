@@ -280,6 +280,7 @@ function faseExecute(sheet) {
   registrarLog(sheet, "EXECUTE: " + inst.op + " completado");
 }
 
+
 function faseStore(sheet) {
   sheet.getRange(CPU_STATE).setValue("STORE");
   //animarBus("#FF9800"); // Bus de Banderas (Naranja)
