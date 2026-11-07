@@ -1,74 +1,81 @@
 function catalogBuiltinPrograms() {
   return [
-    {
+        {
       id: 1,
       name: "Arithmetic AX..DX",
-      description: "Mandatory program. AX = BX * CX by repeated addition. DX keeps the original BX.",
+      description: "Mandatory program. AX = BX * CX by repeated addition. DX keeps the original BX. Expected AX=0CH.",
       file: "arithmetic-ax-dx.asm",
       lines: [
-        "; Mandatory program 1. AX = BX * CX by repeated addition. DX keeps BX.",
-        "  MOV AX, 00H",
-        "  MOV BX, 04H",
-        "  MOV CX, 03H",
-        "  MOV DX, BX",
+        "; Program 1. AX = BX * CX by repeated addition. DX keeps the original BX.",
+        "; Expected after HLT, if the CPU runs this text: AX=0CH, BX=04H, CX=00H, DX=04H, ZF=1.",
+        "; No memory operand, so this program alone cannot raise a page fault or a cache miss.",
+        "  MOV AX, 00H          ; AX = 0, the product",
+        "  MOV BX, 04H          ; BX = 4, the multiplicand",
+        "  MOV CX, 03H          ; CX = 3, the loop counter",
+        "  MOV DX, BX           ; DX = 4, a copy of BX that the loop does not change",
         "loop:",
-        "  ADD AX, DX",
-        "  DEC CX",
-        "  JNZ loop",
-        "  HLT",
+        "  ADD AX, DX           ; AX = AX + DX",
+        "  DEC CX               ; CX = CX - 1. ZF becomes 1 when CX reaches 0",
+        "  JNZ loop             ; repeat while CX is not 0",
+        "  HLT                  ; stop. AX should be 0CH",
       ]
     },
     {
       id: 2,
       name: "Keyboard to LCD",
-      description: "Mandatory program. Echoes 8 keystrokes with IN [KBD] and OUT [LCD]. Empty-queue and Enter are not in the ISA yet.",
+      description: "Mandatory program. Eight IN/OUT pairs. Empty queue and Enter are not implemented (issues #33-#35).",
       file: "keyboard-lcd-echo.asm",
       lines: [
-        "; Mandatory program 2. Echo 8 keystrokes from KBD to LCD.",
-        "; The ISA has no empty-queue or Enter code yet (keyboard is issue #33).",
-        "  MOV CX, 08H",
+        "; Program 2. Eight IN [KBD] / OUT [LCD] pairs, then HLT.",
+        "; The CPU on develop has no IN or OUT case in faseExecute.",
+        "; Issues #33, #34 and #35 are not implemented, so there is no empty-queue",
+        "; value and no Enter key code to test. This file does not invent one.",
+        "; Expected LCD text cannot be produced until those issues exist.",
+        "  MOV CX, 08H          ; eight positions on the 8x1 LCD",
         "echo:",
-        "  IN AX, [KBD]",
-        "  OUT [LCD], AX",
-        "  DEC CX",
-        "  JNZ echo",
-        "  HLT",
+        "  IN AX, [KBD]         ; read one byte from the keyboard port",
+        "  OUT [LCD], AX        ; send that byte to the LCD port",
+        "  DEC CX               ; one position filled",
+        "  JNZ echo             ; stop after 8 transfers, not on Enter",
+        "  HLT                  ; stop. LCD contents are not defined yet",
       ]
     },
     {
       id: 3,
       name: "Scattered accesses",
-      description: "Mandatory program. Reads and writes data on 9 virtual pages (32 bytes each) using ORG and DB.",
+      description: "Mandatory program. Nine virtual pages and four dirty ST writes. Page faults are not executed yet.",
       file: "scattered-access.asm",
       lines: [
-        "; Mandatory program 3. Data on pages 0, 2, 3, 5, 7, 9, 11, 14 and 15.",
-        "; Page size is 32 bytes. More than 8 pages forces a later replacement.",
-        "  LD AX, [40H]",
-        "  LD BX, [A0H]",
-        "  ADD AX, BX",
-        "  ST [120H], AX",
-        "  ST [1C0H], BX",
-        "  LD CX, [60H]",
-        "  ST [E0H], CX",
-        "  LD DX, [160H]",
-        "  ST [1E0H], DX",
-        "  HLT",
-        "ORG 40H",
-        "  DB 01H",
-        "ORG 60H",
-        "  DB 03H",
-        "ORG A0H",
-        "  DB 02H",
-        "ORG E0H",
-        "  DB 05H",
-        "ORG 120H",
-        "  DB 06H",
-        "ORG 160H",
-        "  DB 04H",
-        "ORG 1C0H",
-        "  DB 07H",
-        "ORG 1E0H",
-        "  DB 08H",
+        "; Program 3. Touch 9 virtual pages of 32 bytes. Four ST instructions are dirty writes.",
+        "; Pages: 0 (code), 2, 3, 5, 7, 9, 11, 14, 15. More than the 8 physical frames.",
+        "; Page faults, replacement and cache hits are not produced by assemble().",
+        "; Fetch still uses physical RAM until issue #25 connects the MMU.",
+        "  LD AX, [40H]         ; read page 2",
+        "  LD BX, [A0H]         ; read page 5",
+        "  ADD AX, BX           ; AX = byte[40H] + byte[A0H]. No memory access",
+        "  ST [120H], AX        ; dirty write, page 9",
+        "  ST [1C0H], BX        ; dirty write, page 14",
+        "  LD CX, [60H]         ; read page 3",
+        "  ST [E0H], CX         ; dirty write, page 7",
+        "  LD DX, [160H]        ; read page 11",
+        "  ST [1E0H], DX        ; dirty write, page 15",
+        "  HLT                  ; stop. Code itself occupies page 0",
+        "ORG 40H                ; page 2",
+        "  DB 01H               ; initial byte read by LD AX",
+        "ORG 60H                ; page 3",
+        "  DB 03H               ; initial byte read by LD CX",
+        "ORG A0H                ; page 5",
+        "  DB 02H               ; initial byte read by LD BX",
+        "ORG E0H                ; page 7",
+        "  DB 05H               ; byte overwritten by ST [E0H]",
+        "ORG 120H               ; page 9",
+        "  DB 06H               ; byte overwritten by ST [120H]",
+        "ORG 160H               ; page 11",
+        "  DB 04H               ; initial byte read by LD DX",
+        "ORG 1C0H               ; page 14",
+        "  DB 07H               ; byte overwritten by ST [1C0H]",
+        "ORG 1E0H               ; page 15",
+        "  DB 08H               ; byte overwritten by ST [1E0H]",
       ]
     },
     {
@@ -399,4 +406,25 @@ function catalogInstallMenu() {
     .addItem("New program", "catalogNewProgram")
     .addItem("Duplicate", "catalogDuplicate")
     .addToUi();
+}
+function catalogRefreshMandatory() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sources = ss.getSheetByName(CATALOG_SOURCE_SHEET);
+  var directory = ss.getSheetByName(CATALOG_SHEET);
+  if (!sources || !directory) {
+    SpreadsheetApp.getUi().alert("Run catalogInitialize first.");
+    return;
+  }
+  var builtins = catalogBuiltinPrograms();
+  var programs = catalogReadPrograms(sources);
+  var b;
+  for (b = 0; b < builtins.length && builtins[b].id <= 3; b++) {
+    var column = b + 1;
+    var p;
+    for (p = 0; p < programs.length; p++) {
+      if (String(programs[p].id) === String(builtins[b].id)) column = programs[p].column;
+    }
+    catalogWriteProgram(sources, column, builtins[b]);
+  }
+  catalogRefreshDirectory(directory, catalogReadPrograms(sources), catalogDescriptionMap(directory));
 }
