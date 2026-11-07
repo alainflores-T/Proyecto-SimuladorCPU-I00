@@ -16,9 +16,8 @@ function cargarDesdeHojaProgramas() {
     if (instruccion && instruccion.toString().trim() !== "") {
       var direccionHex = i.toString(16).toUpperCase().padStart(2, '0') + "H";
       
-      // 1. Cargar en matriz RAM
-      var celdaRAM = obtenerCeldaRAM(direccionHex);
-      if (celdaRAM) celdaRAM.setValue(instruccion);
+      // 1. Cargar en la RAM física. "00H".."0FH" son direcciones; el texto no se parsea.
+      writePhysical(direccionHex, instruccion);
       
       // 2. Cargar en la Pila de Instrucciones visual (Columna I)
       var textoPila = direccionHex + ": " + instruccion;

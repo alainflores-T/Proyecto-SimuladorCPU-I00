@@ -53,8 +53,8 @@ function resetCPU() {
   sheet.getRange(FLAG_CF).setValue(0);
   sheet.getRange(FLAG_SF).setValue(0);
   
-  // Limpiar Memoria RAM
-  sheet.getRange(RAM_START_ROW, RAM_START_COL, 16, 16).setValue("");
+  // Limpiar la matriz de Hoja 1 de una sola vez. El resto del reset sigue en esta hoja.
+  RAMFisica.vaciar();
   // >>> NUEVO: Limpiar la Pila de Instrucciones Visual <<<
   sheet.getRange(STACK_START_ROW, STACK_COL, 16, 1).setValue("").setBackground(null);
 
