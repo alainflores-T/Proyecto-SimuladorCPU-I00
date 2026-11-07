@@ -297,6 +297,13 @@ function faseExecute(sheet) {
 
     if (typeof escribirMemoriaCPU === "function") escribirMemoriaCPU(sheet);
     else transferEscrituraMemoria(sheet);
+  }  else if (inst.op === "IN") {
+    ioExecuteIn(sheet, dest, src);
+    return;
+  }
+  else if (inst.op === "OUT") {
+    ioExecuteOut(sheet, dest, src);
+    return;
   }
 
   registrarLog(sheet, "EXECUTE: " + inst.op + " completado");
