@@ -16,6 +16,24 @@ function cacheLista_() {
   } catch (e) { return false; }
 }
 
+function confirmarCache_(estado, eventos) {
+  var backup = PropertiesService.getDocumentProperties().getProperty("CACHE_ESTRUCTURA_v1");
+  var backupC = null;
+  try { backupC = PropertiesService.getDocumentProperties().getProperty("CACHE_CONTADORES_v1"); } catch (eB) { backupC = null; }
+  try {
+    guardarVistaCache_(estado);
+    if (typeof anotarEventosCache === "function") anotarEventosCache(eventos);
+  } catch (eConf) {
+    if (backup) PropertiesService.getDocumentProperties().setProperty("CACHE_ESTRUCTURA_v1", backup);
+    if (backupC) PropertiesService.getDocumentProperties().setProperty("CACHE_CONTADORES_v1", backupC);
+    else {
+      var props = PropertiesService.getDocumentProperties();
+      if (props.deleteProperty) props.deleteProperty("CACHE_CONTADORES_v1");
+    }
+    throw eConf;
+  }
+}
+
 function guardarVistaCache_(estado) {
   PropertiesService.getDocumentProperties().setProperty("CACHE_ESTRUCTURA_v1", JSON.stringify(estado));
   if (typeof SpreadsheetApp === "undefined" || typeof instalarCaches !== "function") return;
@@ -127,16 +145,26 @@ function readCache(physAddr, tipo) {
   var estado = cargarEstadoCache_();
   var desc = describirDireccionCache(physAddr);
   var l1 = lineaL1_(estado, tipo);
+  var nombre = tipo === "instruccion" ? "L1I" : "L1D";
   if (l1.valid && l1.tag === desc.l1.tag && l1.base === (physAddr & ~7)) {
     usarLinea_(estado, l1);
-    guardarVistaCache_(estado);
+    confirmarCache_(estado, [{ nivel: nombre, hit: true }]);
     return l1.bytes[desc.offset];
   }
+  var eventos = [{ nivel: nombre, hit: false }];
   var l2 = estado.l2[desc.l2.indice];
-  if (!(l2.valid && l2.tag === desc.l2.tag && l2.base === (physAddr & ~7))) l2 = llenarDesdeRam_(estado, desc);
-  else usarLinea_(estado, l2);
+  var reemplazoL2 = l2.valid && l2.tag !== desc.l2.tag;
+  if (!(l2.valid && l2.tag === desc.l2.tag && l2.base === (physAddr & ~7))) {
+    l2 = llenarDesdeRam_(estado, desc);
+    eventos.push({ nivel: "L2", hit: false, reemplazo: reemplazoL2, indice: desc.l2.indice });
+  } else {
+    usarLinea_(estado, l2);
+    eventos.push({ nivel: "L2", hit: true, indice: desc.l2.indice });
+  }
+  var reemplazoL1 = l1.valid && l1.tag !== desc.l1.tag;
   var dato = copiarAL1_(estado, tipo, desc, l2);
-  guardarVistaCache_(estado);
+  eventos[0].reemplazo = reemplazoL1;
+  confirmarCache_(estado, eventos);
   return dato;
 }
 
@@ -150,18 +178,26 @@ function writeCache(physAddr, valor, tipo) {
   }
   var estado = cargarEstadoCache_();
   var desc = describirDireccionCache(physAddr);
+  var nombre = tipo === "instruccion" ? "L1I" : "L1D";
+  var l1 = lineaL1_(estado, tipo);
   var l2 = estado.l2[desc.l2.indice];
-  if (!(l2.valid && l2.tag === desc.l2.tag && l2.base === (physAddr & ~7))) l2 = llenarDesdeRam_(estado, desc);
+  var aciertoL1 = l1.valid && l1.tag === desc.l1.tag && l1.base === (physAddr & ~7);
+  var aciertoL2 = l2.valid && l2.tag === desc.l2.tag && l2.base === (physAddr & ~7);
+  var reemplazoL2 = l2.valid && !aciertoL2;
+  if (!aciertoL2) l2 = llenarDesdeRam_(estado, desc);
   l2.bytes[desc.offset] = valor;
   l2.dirty = null;
   usarLinea_(estado, l2);
-  var l1 = lineaL1_(estado, tipo);
-  if (!(l1.valid && l1.tag === desc.l1.tag && l1.base === l2.base)) copiarAL1_(estado, tipo, desc, l2);
+  var reemplazoL1 = l1.valid && !aciertoL1;
+  if (!aciertoL1) copiarAL1_(estado, tipo, desc, l2);
+  l1 = lineaL1_(estado, tipo);
   l1.bytes[desc.offset] = valor;
   l1.dirty = null;
   usarLinea_(estado, l1);
   writePhysical(physAddr, valor);
-  guardarVistaCache_(estado);
+  var eventos = [{ nivel: nombre, hit: aciertoL1, reemplazo: reemplazoL1 }];
+  if (!aciertoL1) eventos.push({ nivel: "L2", hit: aciertoL2, reemplazo: reemplazoL2, indice: desc.l2.indice });
+  confirmarCache_(estado, eventos);
   return valor;
 }
 
