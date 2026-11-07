@@ -143,8 +143,9 @@ function transfer(bus, source, destinations, sheet) {
   var conflicto = detectarContencion(busNombre);
   if (conflicto) {
     mostrarBuses(sheet);
-    pintarBuffers(sheet);
-    errorContencion(sheet, busNombre, conflicto);
+  pintarBuffers(sheet);
+  senalIncPC = 0;
+  if (typeof publicarPalabraDesdeEstado === "function") publicarPalabraDesdeEstado(sheet);
   }
 
   bus.driver = source.name;
@@ -182,6 +183,12 @@ function mostrarBuses(sheet) {
 }
 
 function setControl(sheet, senales) {
+  ultimasSenalesControl = {
+    rd: senales.rd ? 1 : 0,
+    wr: senales.wr ? 1 : 0,
+    io: senales.io ? 1 : 0
+  };
+  // ...el resto igual
   sheet.getRange(BUS_CTRL_RD).setValue(senales.rd ? 1 : 0);
   sheet.getRange(BUS_CTRL_WR).setValue(senales.wr ? 1 : 0);
   sheet.getRange(BUS_CTRL_IO).setValue(senales.io ? 1 : 0);
@@ -280,7 +287,9 @@ function inicializarPanelBuses(sheet) {
   sheet.getRange("J25").setValue("Clock");
   sheet.getRange("J26").setValue("IO");
 
-  inicializarPanelBuffers(sheet);
+   inicializarPanelBuffers(sheet);
+  if (typeof inicializarPanelPalabraControl === "function") inicializarPanelPalabraControl(sheet);
+  if (typeof inicializarHojaMicrocodigo === "function") inicializarHojaMicrocodigo();
 }
 
 function resetearBuses(sheet) {

@@ -52,7 +52,9 @@ function registrarLogDetallado(sheet, explicacion) {
     explicacion,
     pc, ir, mar, mdr, ax, bx, cx, dx,
     aluOp1, aluOp2, aluSym, aluRes,
-    zf, cf, sf
+        zf, cf, sf,
+    (typeof ultimaPalabraHex !== "undefined" ? ultimaPalabraHex : "000000H")
+	
   ]);
 }
 
@@ -66,7 +68,7 @@ function limpiarHojaHistorial() {
   
   var ultimaFila = hojaHistorial.getLastRow();
   if (ultimaFila > 1) {
-      hojaHistorial.getRange(2, 1, ultimaFila - 1, 18).clearContent();
+      hojaHistorial.getRange(2, 1, ultimaFila - 1, 19).clearContent();
   }
 }
 
@@ -121,11 +123,13 @@ function crearEstructuraHistorial() {
     "ALU Resultado",
     "ZF (Zero)",
     "CF (Carry)",
-    "SF (Sign)"
+    "SF (Sign)",
+	"Palabra de Control"
   ]];
   
   // Escribir los encabezados en la Fila 1
-  var rangoEncabezado = hojaHistorial.getRange(1, 1, 1, 18);
+  var rangoEncabezado = hojaHistorial.getRange(1, 1, 1, 19);
+  hojaHistorial.setColumnWidth(19, 130);
   rangoEncabezado.setValues(encabezados);
   
   // Dar formato visual profesional a la cabecera

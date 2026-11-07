@@ -141,6 +141,8 @@ function faseFetch3(sheet) {
   marcarEnable("ALU", busInterno.value, "interno");
   marcarLoad("PC");
   pintarBuffers(sheet);
+  senalIncPC = 1;
+  if (typeof publicarPalabraDesdeEstado === "function") publicarPalabraDesdeEstado(sheet);
   resaltarCelda(sheet, REG_PC, "#BBDEFB");
 
   registrarLogDetallado(sheet, "Bus interno: MDR → IR y avance del PC");
