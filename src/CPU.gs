@@ -2,8 +2,18 @@
 // Issue 25: con la memoria virtual apagada, fetch, LD y ST siguen igual.
 // Encendida y sin programa cargado, RUN no lee la RAM vacía.
 // --- FUNCIÓN RUN (Ejecución automática) ---
+function hojaDeLaCpu_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var fija = (typeof SHEET_NAME !== "undefined" && ss.getSheetByName) ? ss.getSheetByName(SHEET_NAME) : null;
+  if (fija && ss.setActiveSheet) {
+    try { if (!ss.getActiveSheet || ss.getActiveSheet() !== fija) ss.setActiveSheet(fija); } catch (e) {}
+  }
+  if (fija && ss.getActiveSheet && ss.getActiveSheet() === fija) return fija;
+  return ss.getActiveSheet();
+}
+
 function runCPU() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var sheet = hojaDeLaCpu_();
   var estadoActual = sheet.getRange(CPU_STATE).getValue();
   
   if (estadoActual === "HALT") {
@@ -26,19 +36,20 @@ function runCPU() {
   registrarLog(sheet, "⏹️ EJECUCIÓN AUTOMÁTICA FINALIZADA");
 }
 function pausarCPU() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var sheet = hojaDeLaCpu_();
   sheet.getRange(CPU_STATE).setValue("PAUSE");
   registrarLog(sheet, "⏸️ EJECUCIÓN PAUSADA");
 }
 
 
 function resetCPU() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var sheet = hojaDeLaCpu_();
   
   // Garantiza que la pestaña "Historial" exista y esté limpia
   crearEstructuraHistorial();
   limpiarFondoRegistros(sheet);
   limpiarHojaHistorial();
+  if (typeof resetContadoresCache === "function") resetContadoresCache();
 
   // Limpiar Registros
   sheet.getRange(REG_PC).setValue("00H");
@@ -72,8 +83,6 @@ function resetCPU() {
   
   inicializarPanelBuses(sheet);
   resetearBuses(sheet);
-  if (typeof kbdReset === "function") kbdReset();
-  if (typeof lcdReset === "function") lcdReset();
 }
 
 // Modo físico: no hace nada. Modo virtual sin programa: no llega a leer la RAM.
@@ -84,7 +93,7 @@ function exigirModoMemoriaCPU_() {
 }
 
 function stepCPU() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var sheet = hojaDeLaCpu_();
   var estadoActual = sheet.getRange(CPU_STATE).getValue();
   
   if (estadoActual === "HALT") {
@@ -132,7 +141,7 @@ function faseFetch1(sheet) {
 function faseFetch2(sheet) {
   sheet.getRange(CPU_STATE).setValue("FETCH_2");
   var marVal = sheet.getRange(REG_MAR).getValue();
-  var datoRAM = (typeof leerMemoriaCPU === "function") ? leerMemoriaCPU(sheet) : transferLecturaMemoria(sheet);
+  var datoRAM = (typeof leerCacheCPU === "function") ? leerCacheCPU(sheet, "instruccion") : ((typeof leerMemoriaCPU === "function") ? leerMemoriaCPU(sheet) : transferLecturaMemoria(sheet));
   resaltarCelda(sheet, REG_MDR, "#FFF59D");
   registrarLogDetallado(sheet, "Bus externo: lectura RAM[" + marVal + "] → MDR (" + datoRAM + ")");
 }
@@ -266,7 +275,7 @@ function faseExecute(sheet) {
     SpreadsheetApp.flush();
     Utilities.sleep(400);
 
-    var datoRAM = (typeof leerMemoriaCPU === "function") ? leerMemoriaCPU(sheet) : transferLecturaMemoria(sheet);
+    var datoRAM = (typeof leerCacheCPU === "function") ? leerCacheCPU(sheet, "dato") : ((typeof leerMemoriaCPU === "function") ? leerMemoriaCPU(sheet) : transferLecturaMemoria(sheet));
     resaltarCelda(sheet, REG_MDR, "#FFF59D");
     SpreadsheetApp.flush();
     Utilities.sleep(400);
@@ -295,15 +304,9 @@ function faseExecute(sheet) {
     SpreadsheetApp.flush();
     Utilities.sleep(400);
 
-    if (typeof escribirMemoriaCPU === "function") escribirMemoriaCPU(sheet);
+    if (typeof escribirCacheCPU === "function") escribirCacheCPU(sheet);
+    else if (typeof escribirMemoriaCPU === "function") escribirMemoriaCPU(sheet);
     else transferEscrituraMemoria(sheet);
-  }  else if (inst.op === "IN") {
-    ioExecuteIn(sheet, dest, src);
-    return;
-  }
-  else if (inst.op === "OUT") {
-    ioExecuteOut(sheet, dest, src);
-    return;
   }
 
   registrarLog(sheet, "EXECUTE: " + inst.op + " completado");
