@@ -72,6 +72,7 @@ function resetCPU() {
   
   inicializarPanelBuses(sheet);
   resetearBuses(sheet);
+  if (typeof kbdReset === "function") kbdReset();
 }
 
 // Modo físico: no hace nada. Modo virtual sin programa: no llega a leer la RAM.
