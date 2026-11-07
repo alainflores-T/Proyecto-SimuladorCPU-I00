@@ -1,4 +1,6 @@
 // CPU.gs - Núcleo de control de micro-operaciones
+// Issue 25: con la memoria virtual apagada, fetch, LD y ST siguen igual.
+// Encendida y sin programa cargado, RUN no lee la RAM vacía.
 // --- FUNCIÓN RUN (Ejecución automática) ---
 function runCPU() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
@@ -8,6 +10,7 @@ function runCPU() {
     registrarLog(sheet, "SISTEMA DETENIDO. Presiona Reset antes de volver a ejecutar.");
     return;
   }
+  exigirModoMemoriaCPU_();
   
   registrarLog(sheet, "▶️ EJECUCIÓN AUTOMÁTICA (RUN) INICIADA");
   
@@ -71,6 +74,13 @@ function resetCPU() {
   resetearBuses(sheet);
 }
 
+// Modo físico: no hace nada. Modo virtual sin programa: no llega a leer la RAM.
+function exigirModoMemoriaCPU_() {
+  if (typeof memoriaVirtualActiva !== "function" || !memoriaVirtualActiva()) return;
+  if (typeof programaVirtualCargado === "function" && programaVirtualCargado()) return;
+  throw new Error("CPU: la memoria virtual está activa y no hay un programa cargado. Ejecute cargarProgramaVirtual o Load selected program. No se leyó la RAM.");
+}
+
 function stepCPU() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var estadoActual = sheet.getRange(CPU_STATE).getValue();
@@ -79,6 +89,7 @@ function stepCPU() {
     registrarLog(sheet, "SISTEMA DETENIDO. Presiona Reset para iniciar otro programa.");
     return;
   }
+  exigirModoMemoriaCPU_();
   
   // >>> BORRA LOS COLORES DEL PASO ANTERIOR ANTES DE EJECUTAR EL SIGUIENTE <<<
   limpiarFondoRegistros(sheet);
@@ -119,7 +130,7 @@ function faseFetch1(sheet) {
 function faseFetch2(sheet) {
   sheet.getRange(CPU_STATE).setValue("FETCH_2");
   var marVal = sheet.getRange(REG_MAR).getValue();
-  var datoRAM = transferLecturaMemoria(sheet);
+  var datoRAM = (typeof leerMemoriaCPU === "function") ? leerMemoriaCPU(sheet) : transferLecturaMemoria(sheet);
   resaltarCelda(sheet, REG_MDR, "#FFF59D");
   registrarLogDetallado(sheet, "Bus externo: lectura RAM[" + marVal + "] → MDR (" + datoRAM + ")");
 }
@@ -133,7 +144,8 @@ function faseFetch3(sheet) {
   Utilities.sleep(800);
 
   var pcVal = sheet.getRange(REG_PC).getValue();
-  incrementarPC(sheet, pcVal);
+  if (typeof memoriaVirtualActiva === "function" && memoriaVirtualActiva()) incrementarPCVirtual(sheet, pcVal);
+  else incrementarPC(sheet, pcVal);
   busInterno.driver = "ALU";
   busInterno.value = sheet.getRange(REG_PC).getValue();
   mostrarBuses(sheet);
@@ -252,7 +264,7 @@ function faseExecute(sheet) {
     SpreadsheetApp.flush();
     Utilities.sleep(400);
 
-    var datoRAM = transferLecturaMemoria(sheet);
+    var datoRAM = (typeof leerMemoriaCPU === "function") ? leerMemoriaCPU(sheet) : transferLecturaMemoria(sheet);
     resaltarCelda(sheet, REG_MDR, "#FFF59D");
     SpreadsheetApp.flush();
     Utilities.sleep(400);
@@ -281,7 +293,8 @@ function faseExecute(sheet) {
     SpreadsheetApp.flush();
     Utilities.sleep(400);
 
-    transferEscrituraMemoria(sheet);
+    if (typeof escribirMemoriaCPU === "function") escribirMemoriaCPU(sheet);
+    else transferEscrituraMemoria(sheet);
   }
 
   registrarLog(sheet, "EXECUTE: " + inst.op + " completado");
