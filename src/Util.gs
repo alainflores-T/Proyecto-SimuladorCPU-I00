@@ -5,8 +5,9 @@ function limpiarFondoRegistros(sheet) {
     sheet.getRange(celdasRegistros[i]).setBackground(null);
   }
   
-  // 2. Limpia cualquier celda resaltada en la RAM (matriz 16x16)
-  sheet.getRange(RAM_START_ROW, RAM_START_COL, 16, 16).setBackground(null);
+  // 2. El fondo de la matriz va a Hoja 1. La hoja recibida puede ser la activa
+  // y, si esa pestaña es LOG, no hay que pintar ahí.
+  RAMFisica.limpiarFondo();
 }
 function resaltarCelda(sheet, rango, colorHex) {
   sheet.getRange(rango).setBackground(colorHex);
@@ -149,36 +150,33 @@ function crearEstructuraHistorial() {
 }
 
 /**
- * Obtiene el dato de la celda de RAM correspondiente a una dirección HEX
+ * Lectura de RAM usada por el bus. La celda sale de readPhysical (Hoja 1).
+ * El argumento sheet se conserva porque Buses.gs lo pasa; no elige la pestaña.
+ * Una dirección rechazada devuelve "NOP" y no lee fuera de 0..255.
+ * "20" no se interpreta como 32. "20H" sí es la dirección 32.
  */
 function obtenerDatoRAM(sheet, direccionHex) {
-  var dirLimpia = direccionHex.toString().replace("H", "").trim();
-  var dirNum = parseInt(dirLimpia, 16);
-  
-  if (isNaN(dirNum)) return "NOP";
-  
-  // Cálculo de posición en la matriz 16x16
-  var offsetFila = Math.floor(dirNum / 16);
-  var offsetCol  = dirNum % 16;
-  
-  var filaReal = RAM_START_ROW + offsetFila;
-  var colReal  = RAM_START_COL + offsetCol;
-  
-  return sheet.getRange(filaReal, colReal).getValue();
+  try {
+    return readPhysical(direccionHex);
+  } catch (e) {
+    var msg = String(e && e.message);
+    if (msg.indexOf("MemoriaFisica:") === 0 && msg.indexOf("dirección") !== -1) return "NOP";
+    throw e;
+  }
 }
 
 /**
- * Retorna el rango de celda correspondiente a la dirección HEX
+ * Ya no devuelve un Range de la hoja activa: setValue iría al margen del contrato.
+ * getValue y setValue pasan por readPhysical / writePhysical.
+ * setBackground solo cambia el color, en Hoja 1.
  */
 function obtenerCeldaRAM(direccionHex) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var dirLimpia = direccionHex.toString().replace("H", "").trim();
-  var dirNum = parseInt(dirLimpia, 16) || 0;
-  
-  var offsetFila = Math.floor(dirNum / 16);
-  var offsetCol  = dirNum % 16;
-  
-  return sheet.getRange(RAM_START_ROW + offsetFila, RAM_START_COL + offsetCol);
+  var direccion = RAMFisica.direccion(direccionHex);
+  return {
+    getValue: function () { return readPhysical(direccion); },
+    setValue: function (valor) { return writePhysical(direccion, valor); },
+    setBackground: function (color) { RAMFisica.pintarFondo(direccion, color); }
+  };
 }
 
 function incrementarPC(sheet, pcActualHex) {
@@ -226,9 +224,8 @@ function RAM_y_Reg_To_DEC() { cambiarFormatoRAM("DEC"); cambiarFormatoRegistros(
 
 // --- CONVERSOR DE FORMATOS DE MEMORIA RAM ---
 function cambiarFormatoRAM(formatoDestino) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var rangoRAM = sheet.getRange(RAM_START_ROW, RAM_START_COL, 16, 16);
-  var data = rangoRAM.getValues();
+  var sheet = RAMFisica.hoja();
+  var data = RAMFisica.leerBloque();
   
   for (var i = 0; i < 16; i++) {
     for (var j = 0; j < 16; j++) {
@@ -263,8 +260,8 @@ function cambiarFormatoRAM(formatoDestino) {
     }
   }
   
-  // Escribir los datos modificados de vuelta en bloque (más rápido)
-  rangoRAM.setValues(data);
+  // Un solo setValues, por el acceso central, sobre Hoja 1.
+  RAMFisica.escribirBloque(data);
   registrarLog(sheet, "🔄 Formato RAM cambiado a " + formatoDestino);
 }
 
