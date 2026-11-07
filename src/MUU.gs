@@ -26,6 +26,8 @@ var MMU = (function () {
   var ROJO = "#FFCDD2";
   var reemplazoForzado_ = { usar: false, fn: null };
   var resolviendo_ = false;
+  var corteCarga_ = false;
+  var animarBuses_ = true;
 
   function libro_() {
     if (typeof SpreadsheetApp === "undefined" || !SpreadsheetApp.getActiveSpreadsheet) {
@@ -89,7 +91,7 @@ var MMU = (function () {
     var paginas = [];
     var i;
     for (i = 0; i < 16; i++) paginas.push({ p: false, pfn: null, dirty: false, ref: false });
-    return { version: 1, paginas: paginas, fallos: 0, bitacora: [], vistos: [] };
+    return { version: 1, paginas: paginas, fallos: 0, bitacora: [], vistos: [], reloj: 0 };
   }
 
   function clonar_(estado) {
@@ -128,6 +130,7 @@ var MMU = (function () {
     if (typeof obj.fallos !== "number" || obj.fallos < 0 || Math.floor(obj.fallos) !== obj.fallos) obj.fallos = 0;
     if (!obj.bitacora || typeof obj.bitacora.length !== "number") obj.bitacora = [];
     if (!obj.vistos || typeof obj.vistos.length !== "number") obj.vistos = [];
+    if (typeof obj.reloj !== "number" || obj.reloj < 0 || Math.floor(obj.reloj) !== obj.reloj) obj.reloj = 0;
     return obj;
   }
 
@@ -178,7 +181,7 @@ var MMU = (function () {
       hoja.getRange(fila, 5).setValue(p.ref ? 1 : 0);
       var uso = hoja.getRange(fila, 6);
       if (uso.setNumberFormat) uso.setNumberFormat("@");
-      uso.setValue("—");
+      uso.setValue(textoUso_(p));
     }
   }
 
@@ -232,25 +235,17 @@ var MMU = (function () {
     return { hoja: hoja, estado: estado };
   }
 
-  function leerFila_(hoja, vpn) {
-    var fila = filaDe_(vpn);
-    return {
-      p: Number(hoja.getRange(fila, 2).getValue()) === 1,
-      pfnTexto: String(hoja.getRange(fila, 3).getValue()),
-      dirty: Number(hoja.getRange(fila, 4).getValue()) === 1,
-      ref: Number(hoja.getRange(fila, 5).getValue()) === 1
-    };
-  }
-
   function coincide_(hoja, estado) {
+    var valores = hoja.getRange(FILA0, 2, 16, 4).getValues();
     var i;
     for (i = 0; i < 16; i++) {
-      var visto = leerFila_(hoja, i);
+      var fila = valores[i];
       var guardado = estado.paginas[i];
       var pfn = guardado.pfn === null ? "—" : String(guardado.pfn);
-      if (visto.p !== guardado.p || visto.pfnTexto !== pfn || visto.dirty !== guardado.dirty || visto.ref !== guardado.ref) {
-        return false;
-      }
+      if ((Number(fila[0]) === 1) !== guardado.p) return false;
+      if (String(fila[1]) !== pfn) return false;
+      if ((Number(fila[2]) === 1) !== guardado.dirty) return false;
+      if ((Number(fila[3]) === 1) !== guardado.ref) return false;
     }
     return true;
   }
@@ -282,6 +277,18 @@ var MMU = (function () {
     MarcosRAM.establecer(pfn, campo, valor);
   }
 
+  function textoUso_(p) {
+    if (!p || !p.p || typeof p.uso !== "number") return "—";
+    return String(p.uso);
+  }
+
+  function tickEn_(estado) {
+    if (typeof estado.reloj !== "number" || estado.reloj < 0 || Math.floor(estado.reloj) !== estado.reloj) estado.reloj = 0;
+    estado.reloj += 1;
+    if (estado.reloj > 1000000) throw new Error("MMU: el reloj de uso pasó de 1000000. No se escribió nada.");
+    return estado.reloj;
+  }
+
   function publicar_(ctx, vpn) {
     var p = ctx.estado.paginas[vpn];
     var fila = filaDe_(vpn);
@@ -291,6 +298,39 @@ var MMU = (function () {
     celda.setValue(textoPfn_(p.pfn));
     ctx.hoja.getRange(fila, 4).setValue(p.dirty ? 1 : 0);
     ctx.hoja.getRange(fila, 5).setValue(p.ref ? 1 : 0);
+    var uso = ctx.hoja.getRange(fila, 6);
+    if (uso.setNumberFormat) uso.setNumberFormat("@");
+    uso.setValue(textoUso_(p));
+  }
+
+  function reflejarOrden_(ctx) {
+    var lista = [];
+    var i;
+    for (i = 0; i < 16; i++) {
+      var p = ctx.estado.paginas[i];
+      if (!p.p) continue;
+      if (typeof p.orden !== "number") return;
+      lista.push({ vpn: i, pfn: p.pfn, orden: p.orden, uso: p.uso });
+    }
+    lista.sort(function (a, b) {
+      if (a.orden !== b.orden) return a.orden - b.orden;
+      return a.pfn - b.pfn;
+    });
+    var cambio = false;
+    for (i = 0; i < lista.length; i++) {
+      var pag = ctx.estado.paginas[lista[i].vpn];
+      if (pag.puesto !== i) {
+        pag.puesto = i;
+        sincronizar_(lista[i].pfn, "fifo", i);
+        cambio = true;
+      }
+      if (typeof lista[i].uso === "number" && pag.usoPanel !== lista[i].uso) {
+        pag.usoPanel = lista[i].uso;
+        sincronizar_(lista[i].pfn, "ultimoUso", lista[i].uso);
+        cambio = true;
+      }
+    }
+    if (cambio) guardar_(ctx.estado);
   }
 
   function buscar_(direccion) {
@@ -324,9 +364,14 @@ var MMU = (function () {
     var pagina = r.ctx.estado.paginas[r.vpn];
     pagina.ref = true;
     if (escritura) pagina.dirty = true;
+    if (typeof pagina.orden === "number") pagina.uso = tickEn_(r.ctx.estado);
     publicar_(r.ctx, r.vpn);
     guardar_(r.ctx.estado);
     if (escritura) sincronizar_(r.pfn, "dirty", true);
+    if (typeof pagina.uso === "number") {
+      sincronizar_(r.pfn, "ultimoUso", pagina.uso);
+      pagina.usoPanel = pagina.uso;
+    }
   }
 
   function leer_(direccion) {
@@ -433,6 +478,23 @@ var MMU = (function () {
     return hoja;
   }
 
+  function escribirMarcoFisico_(pfn, valores32) {
+    var hoja = hojaRam_();
+    var pos = posRam_(pfn * 32);
+    var filas = [[], []];
+    var i;
+    for (i = 0; i < 16; i++) filas[0].push(valores32[i]);
+    for (i = 16; i < 32; i++) filas[1].push(valores32[i]);
+    var rango = hoja.getRange(pos.fila, pos.col, 2, 16);
+    if (rango.setNumberFormat) rango.setNumberFormat("@");
+    if (corteCarga_) {
+      corteCarga_ = false;
+      hoja.getRange(pos.fila, pos.col, 1, 16).setValues([filas[0]]);
+      throw new Error("MMU: corte de prueba");
+    }
+    rango.setValues(filas);
+  }
+
   function posRam_(addr) {
     if (typeof RAM_START_ROW === "undefined" || typeof RAM_START_COL === "undefined") throw new Error("MMU: falta la posición de la RAM. No se escribió nada.");
     return { fila: RAM_START_ROW + Math.floor(addr / 16), col: RAM_START_COL + (addr % 16) };
@@ -441,18 +503,24 @@ var MMU = (function () {
   function fotoMarco_(pfn) {
     var hoja = hojaRam_();
     var base = pfn * 32;
+    var pos = posRam_(base);
+    var rango = hoja.getRange(pos.fila, pos.col, 2, 16);
+    var valores = rango.getValues();
+    var formulas = rango.getFormulas ? rango.getFormulas() : null;
+    var formatos = rango.getNumberFormats ? rango.getNumberFormats() : null;
+    var fondos = rango.getBackgrounds ? rango.getBackgrounds() : null;
     var celdas = [];
-    var i;
+    var i, fila, col;
     for (i = 0; i < 32; i++) {
-      var pos = posRam_(base + i);
-      var rango = hoja.getRange(pos.fila, pos.col);
+      fila = Math.floor(i / 16);
+      col = i % 16;
       celdas.push({
-        fila: pos.fila,
-        col: pos.col,
-        v: rango.getValue(),
-        f: rango.getFormula ? rango.getFormula() : "",
-        fmt: rango.getNumberFormat ? rango.getNumberFormat() : "General",
-        bg: rango.getBackground ? rango.getBackground() : null
+        fila: pos.fila + fila,
+        col: pos.col + col,
+        v: valores[fila][col],
+        f: formulas ? formulas[fila][col] : "",
+        fmt: formatos ? formatos[fila][col] : "General",
+        bg: fondos ? fondos[fila][col] : null
       });
     }
     return celdas;
@@ -563,6 +631,7 @@ var MMU = (function () {
     var v;
     for (v = 0; v < ctx.estado.vistos.length; v++) hoja.getRange(filaDe_(ctx.estado.vistos[v]), 1, 1, 6).setBackground(ROJO);
     if (info) pintarCarga_(info);
+    if (info && typeof info.victima === "number") hoja.getRange(filaDe_(info.victima), 1, 1, 6).setBackground("#FFE0B2");
     try {
       if (typeof registrarLog === "function") registrarLog(SpreadsheetApp.getActiveSpreadsheet().getActiveSheet(), "PAGE FAULT " + linea);
     } catch (eLog) {}
@@ -598,14 +667,14 @@ var MMU = (function () {
       pfn = inv.libres[0];
     } else {
       libre = false;
-      var hook = obtenerReemplazo_();
-      if (!hook) throw new Error("MMU: los 8 marcos están ocupados y no hay política de reemplazo (issue 26). No se escribió nada.");
       var ocupados = [];
       var q;
       for (q = 0; q < 16; q++) {
         var pg = ctx.estado.paginas[q];
-        if (pg.p) ocupados.push({ vpn: q, pfn: pg.pfn, dirty: pg.dirty, ref: pg.ref });
+        if (pg.p) ocupados.push({ vpn: q, pfn: pg.pfn, dirty: pg.dirty, ref: pg.ref, orden: pg.orden, uso: pg.uso });
       }
+      var hook = obtenerReemplazo_();
+      if (!hook) throw new Error("MMU: los 8 marcos están ocupados y no hay política de reemplazo (issue 26). No se escribió nada.");
       var decision;
       try {
         decision = hook({ vpn: vpn, direccion: fallo.pageFault.direccion, escritura: !!escritura, ocupados: ocupados });
@@ -634,7 +703,18 @@ var MMU = (function () {
     var fotosSwap = [fotoSwapFila_(vpn)];
     if (victima) fotosSwap.push(fotoSwapFila_(victima.vpn));
     var marcoAntes = null;
-    if (inv.marcos) marcoAntes = { vpn: MarcosRAM.leer(pfn, "vpn"), dirty: MarcosRAM.leer(pfn, "dirty") };
+    if (inv.marcos) {
+      marcoAntes = [];
+      var mf;
+      for (mf = 0; mf < 8; mf++) {
+        marcoAntes.push({
+          vpn: MarcosRAM.leer(mf, "vpn"),
+          dirty: MarcosRAM.leer(mf, "dirty"),
+          fifo: MarcosRAM.leer(mf, "fifo"),
+          ultimoUso: MarcosRAM.leer(mf, "ultimoUso")
+        });
+      }
+    }
     var marcosTocados = false;
     try {
       if (victima && victima.dirty) {
@@ -642,8 +722,13 @@ var MMU = (function () {
         var viejo = [];
         for (i = 0; i < 32; i++) viejo.push(validarValorCarga_(readPhysical(pfn * 32 + i)));
         writeSwap(victima.vpn, viejo);
+        try {
+          if (typeof registrarLog === "function") {
+            registrarLog(SpreadsheetApp.getActiveSpreadsheet().getActiveSheet(), "write-back VPN " + victima.vpn + " marco " + pfn + " 32 bytes");
+          }
+        } catch (eLog) {}
       }
-      for (i = 0; i < 32; i++) writePhysical(pfn * 32 + i, limpio[i]);
+      escribirMarcoFisico_(pfn, limpio);
       var nuevo = clonar_(ctx.estado);
       if (victima) {
         nuevo.paginas[victima.vpn].p = false;
@@ -654,6 +739,13 @@ var MMU = (function () {
       nuevo.paginas[vpn].pfn = pfn;
       nuevo.paginas[vpn].dirty = false;
       nuevo.paginas[vpn].ref = true;
+      var marcaReloj = tickEn_(nuevo);
+      nuevo.paginas[vpn].orden = marcaReloj;
+      nuevo.paginas[vpn].uso = marcaReloj;
+      if (victima) {
+        nuevo.paginas[victima.vpn].orden = null;
+        nuevo.paginas[victima.vpn].uso = null;
+      }
       guardar_(nuevo);
       publicar_({ hoja: ctx.hoja, estado: nuevo }, vpn);
       if (victima) publicar_({ hoja: ctx.hoja, estado: nuevo }, victima.vpn);
@@ -663,6 +755,7 @@ var MMU = (function () {
         MarcosRAM.establecer(pfn, "vpn", vpn);
         MarcosRAM.establecer(pfn, "dirty", false);
         marcosTocados = true;
+        reflejarOrden_({ hoja: ctx.hoja, estado: nuevo });
       }
       if (typeof invalidarCachePagina === "function") {
         invalidarCachePagina({ pfn: pfn, vpn: vpn, vpnSaliente: victima ? victima.vpn : null });
@@ -671,8 +764,13 @@ var MMU = (function () {
     } catch (eCarga) {
       try {
         if (marcosTocados && marcoAntes) {
-          MarcosRAM.establecer(pfn, "vpn", marcoAntes.vpn);
-          MarcosRAM.establecer(pfn, "dirty", marcoAntes.dirty);
+          var mr;
+          for (mr = 0; mr < marcoAntes.length; mr++) {
+            MarcosRAM.establecer(mr, "vpn", marcoAntes[mr].vpn);
+            MarcosRAM.establecer(mr, "dirty", marcoAntes[mr].dirty);
+            MarcosRAM.establecer(mr, "fifo", marcoAntes[mr].fifo);
+            MarcosRAM.establecer(mr, "ultimoUso", marcoAntes[mr].ultimoUso);
+          }
         }
       } catch (eM) {}
       try {
@@ -790,7 +888,8 @@ var MMU = (function () {
     exigirVirtual_();
     var mar = sheet.getRange(REG_MAR).getValue();
     var dato = acceder_(mar, false, null);
-    presentarLectura_(sheet, mar, dato);
+    if (animarBuses_) presentarLectura_(sheet, mar, dato);
+    else sheet.getRange(REG_MDR).setValue(dato);
     return dato;
   }
 
@@ -800,7 +899,7 @@ var MMU = (function () {
     var mar = sheet.getRange(REG_MAR).getValue();
     var dato = sheet.getRange(REG_MDR).getValue();
     acceder_(mar, true, dato);
-    presentarEscritura_(sheet, mar, dato);
+    if (animarBuses_) presentarEscritura_(sheet, mar, dato);
   }
 
   function incrementarVirtual_(sheet, pcActual) {
@@ -1313,18 +1412,12 @@ var MMU = (function () {
         activar_(true);
         fijarPrograma_(true);
         prepararMar("00H");
-        var wp = writePhysical;
-        var n = 0;
-        writePhysical = function (a, v) {
-          n++;
-          if (n === 3) throw new Error("MemoriaFisica: corte de prueba");
-          return wp(a, v);
-        };
+        corteCarga_ = true;
         var lanzo = false;
         try { leerMemoriaCPU(hoja1); }
-        catch (e) { lanzo = true; }
-        finally { writePhysical = wp; }
-        registrar(lanzo && n === 3 && !exigir_().estado.paginas[0].p && (hoja1.getRange(RAM_START_ROW, RAM_START_COL).getFormula() || "") === formula0, "un corte a media carga deshace la RAM y no deja la página presente");
+        catch (e) { lanzo = String(e.message).indexOf("corte de prueba") !== -1; }
+        finally { corteCarga_ = false; }
+        registrar(lanzo && !exigir_().estado.paginas[0].p && (hoja1.getRange(RAM_START_ROW, RAM_START_COL).getFormula() || "") === formula0, "un corte a media carga deshace la RAM y no deja la página presente");
       });
       if (conPanel) {
         seccion(function () {
@@ -1645,7 +1738,8 @@ var MMU = (function () {
     incrementar: incrementarVirtual_,
     escribirPagina: escribirPaginaSwap_,
     cargarPrograma: cargarProgramaVirtual_,
-    reemplazo: registrarReemplazo_
+    reemplazo: registrarReemplazo_,
+    silenciar: function (silencio) { animarBuses_ = !silencio; }
   };
 })();
 
@@ -1664,4 +1758,5 @@ function incrementarPCVirtual(sheet, pcActual) { return MMU.incrementar(sheet, p
 function vmWriteSwapPage(vpn, page32) { return MMU.escribirPagina(vpn, page32); }
 function cargarProgramaVirtual() { return MMU.cargarPrograma(); }
 function registrarReemplazoPagina(fn) { return MMU.reemplazo(fn); }
+function silenciarAnimacionMMU(silencio) { return MMU.silenciar(!!silencio); }
 function instalarYProbarIssue25() { return MMU.probar25(); }
