@@ -169,16 +169,16 @@ function mostrarBuses(sheet) {
   var valInt = textoBus(busInterno.value);
   sheet.getRange(BUS_INT_VAL).setValue(valInt);
   sheet.getRange(BUS_INT_DRIVER).setValue(busInterno.driver || "—");
-  sheet.getRange(BUS_INT_VAL).setBackground(valInt === BUS_ALTA_Z ? "#EEEEEE" : "#C8E6C9");
+  sheet.getRange(BUS_INT_VAL).setBackground(valInt === BUS_ALTA_Z ? "#B0BEC5" : "#C8E6C9");
 
   var valDir = textoBus(busDir.value);
   sheet.getRange(BUS_EXT_ADDR).setValue(valDir);
-  sheet.getRange(BUS_EXT_ADDR).setBackground(busDir.value === null ? "#EEEEEE" : "#CE93D8");
+  sheet.getRange(BUS_EXT_ADDR).setBackground(busDir.value === null ? "#B0BEC5" : "#CE93D8");
 
   var valDat = textoBus(busDatos.value);
   sheet.getRange(BUS_EXT_DATA).setValue(valDat);
   sheet.getRange(BUS_EXT_DRIVER).setValue(busDatos.driver || "—");
-  sheet.getRange(BUS_EXT_DATA).setBackground(valDat === BUS_ALTA_Z ? "#EEEEEE" : "#FFE0B2");
+  sheet.getRange(BUS_EXT_DATA).setBackground(valDat === BUS_ALTA_Z ? "#B0BEC5" : "#FFE0B2");
 }
 
 function setControl(sheet, senales) {
