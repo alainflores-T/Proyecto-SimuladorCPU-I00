@@ -157,6 +157,7 @@ function faseDecode(sheet) {
   var src = inst.src ? inst.src : "Ninguno";
   
   registrarLogDetallado(sheet, "Decodificación: " + op + " (código máquina " + codificarInstruccion(irVal) + ") sobre destino " + dest + " con origen " + src);
+  logDisassembledIr(sheet);
 }
 function fuenteDesdeOperando(sheet, operando) {
   var op = String(operando || "").toUpperCase().trim();
