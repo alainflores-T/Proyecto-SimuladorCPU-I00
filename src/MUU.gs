@@ -374,6 +374,12 @@ var MMU = (function () {
     }
   }
 
+  function marcarAcceso_(direccion, escritura) {
+    var r = buscar_(direccion);
+    fijarBits_(r, !!escritura);
+    return { fisica: r.fisica, vpn: r.vpn, offset: r.offset };
+  }
+
   function leer_(direccion) {
     var r = buscar_(direccion);
     if (typeof readPhysical !== "function") throw new Error("MMU: falta readPhysical. No se actualizó Ref.");
@@ -1739,6 +1745,7 @@ var MMU = (function () {
     escribirPagina: escribirPaginaSwap_,
     cargarPrograma: cargarProgramaVirtual_,
     reemplazo: registrarReemplazo_,
+    marcarAcceso: marcarAcceso_,
     silenciar: function (silencio) { animarBuses_ = !silencio; }
   };
 })();
@@ -1758,5 +1765,6 @@ function incrementarPCVirtual(sheet, pcActual) { return MMU.incrementar(sheet, p
 function vmWriteSwapPage(vpn, page32) { return MMU.escribirPagina(vpn, page32); }
 function cargarProgramaVirtual() { return MMU.cargarPrograma(); }
 function registrarReemplazoPagina(fn) { return MMU.reemplazo(fn); }
+function marcarAccesoMMU(direccion, escritura) { return MMU.marcarAcceso(direccion, escritura); }
 function silenciarAnimacionMMU(silencio) { return MMU.silenciar(!!silencio); }
 function instalarYProbarIssue25() { return MMU.probar25(); }
