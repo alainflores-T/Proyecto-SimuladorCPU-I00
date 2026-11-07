@@ -329,6 +329,10 @@ function catalogInitialize() {
 
 /** Copies the selected program into Editor column A. Other programs stay on Sources. */
 function catalogOpenInEditor() {
+   if (typeof editorLoadSelected === "function") {
+    editorLoadSelected();
+    return;
+  }
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var directory = ss.getSheetByName(CATALOG_SHEET);
   var sources = ss.getSheetByName(CATALOG_SOURCE_SHEET);
