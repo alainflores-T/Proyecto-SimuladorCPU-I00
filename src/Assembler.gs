@@ -335,6 +335,10 @@ var ASM_LISTING_COL = 9;       // column I, same as STACK_COL
 var ASM_LISTING_MAX_ROWS = 40;
 
 function asmReadSourceLines() {
+  if (typeof editorSourceLines === "function") {
+    var structured = editorSourceLines();
+    if (structured && structured.length) return structured;
+  }
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var editor = ss.getSheetByName(ASM_EDITOR_SHEET);
   var lines = [];
