@@ -1006,6 +1006,7 @@ var MMU = (function () {
     cargarProgramaEnSwap();
     reiniciarTabla_();
     RAMFisica.vaciar();
+    if (typeof resetContadoresCache === "function") resetContadoresCache();
     fijarPrograma_(true);
     propiedades_().setProperty(CLAVE_MODO, "virtual");
     var principal = libro.getSheetByName(SHEET_NAME);
