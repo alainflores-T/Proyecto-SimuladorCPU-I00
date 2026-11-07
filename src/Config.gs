@@ -63,3 +63,14 @@ const BUS_CTRL_CLK   = "K25"; // Clock 0/1
 const BUS_CTRL_IO    = "K26"; // IO    0/1
 
 const BUS_ALTA_Z     = "ZZ";
+// --- Panel de buffers tri-state (debajo de los buses) ---
+const BUF_HEADER_ROW = 28;
+const BUF_START_ROW  = 29;
+const BUF_NAME_COL   = 10; // J
+const BUF_EN_COL     = 11; // K
+const BUF_LD_COL     = 12; // L
+const BUF_EST_COL    = 13; // M
+const BUF_COMPONENTES = ["PC","IR","MAR","MDR","AX","BX","CX","DX","ALU","RAM","KBD","LCD"];
+const BUF_BUS_INTERNO   = ["PC","IR","MAR","MDR","AX","BX","CX","DX","ALU"];
+const BUF_BUS_DATOS     = ["MDR","RAM","KBD","LCD"];
+const BUF_BUS_DIRECCION = ["MAR"];

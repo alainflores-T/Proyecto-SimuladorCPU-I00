@@ -137,6 +137,10 @@ function faseFetch3(sheet) {
   busInterno.driver = "ALU";
   busInterno.value = sheet.getRange(REG_PC).getValue();
   mostrarBuses(sheet);
+  limpiarSenalesBuffers();
+  marcarEnable("ALU", busInterno.value, "interno");
+  marcarLoad("PC");
+  pintarBuffers(sheet);
   resaltarCelda(sheet, REG_PC, "#BBDEFB");
 
   registrarLogDetallado(sheet, "Bus interno: MDR → IR y avance del PC");
