@@ -1,12 +1,10 @@
 /**
- * Ui.gs — Step, Run, Pause, Reset and a zone map for issue #13.
- * Does not define onOpen. Does not move the cells named in Config.gs.
- * Assign drawings to uiStep, uiRun, uiPause and uiReset.
- * The old runCPU sleeps 600 ms and does not stop when the state is PAUSE.
+ * UI controls for issue #13. No onOpen hook.
+ * Preserve CPU_STATE when pausing so the micro-cycle can resume.
  */
-
 var UI_LAYOUT_SHEET = "Layout";
-var UI_DELAY_CELL = "B2";
+var UI_DELAY_CELL = "E2";
+var UI_PAUSE_CELL = "E4";
 var UI_ACTIVE = "#C8E6C9";
 var UI_HIGH_Z = "#B0BEC5";
 var UI_HIT = "#2E7D32";
@@ -20,16 +18,20 @@ function uiLayoutSheet() {
 
 function uiMainSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  return ss.getSheetByName(SHEET_NAME) || ss.getActiveSheet();
+  var sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) sheet = ss.getActiveSheet();
+  ss.setActiveSheet(sheet);
+  return sheet;
 }
 
-/** Writes the zone map. It does not edit Hoja 1. */
+/** Keep settings outside the zone table in columns A:C. */
 function uiShowLayout() {
   var sheet = uiLayoutSheet();
   var rows = [
     ["Zone", "Where it already is", "Status"],
     ["CPU state", "Hoja 1!B2 (CPU_STATE)", "Existing"],
-    ["Run delay (ms)", "Layout!B2. uiRun reads it. Blank means 600.", "This file"],
+    ["Run delay (ms)", "Layout!E2. Blank means 600.", "This file"],
+    ["Pause flag", "Layout!E4. Does not change CPU_STATE.", "This file"],
     ["Instruction stack", "Hoja 1 column I from row 3", "Existing"],
     ["Registers PC IR MAR MDR AX BX CX DX", "Hoja 1!C16:C23", "Existing"],
     ["ALU and flags", "Hoja 1 ALU_OP1 B31, ALU_RES D45, flags G39:I39", "Existing"],
@@ -40,68 +42,76 @@ function uiShowLayout() {
     ["Frame table P, PFN, Dirty, Ref", "Sheet TablaPaginas, after instalarYProbarIssue24", "Not drawn here"],
     ["Caches, hit and miss", "No sheet yet", "Waiting"],
     ["Keyboard queue and LCD", "No sheet yet. RESERVA_ES is null", "Waiting"],
-    ["Active wire", UI_ACTIVE, "Driven bus, already used by mostrarBuses"],
-    ["High-Z wire", UI_HIGH_Z, "Undriven bus. See the Buses.gs change"],
+    ["Active wire", UI_ACTIVE, "Driven bus"],
+    ["High-Z wire", UI_HIGH_Z, "Undriven bus"],
     ["Hit", UI_HIT, "No cache panel to paint"],
     ["Miss or page fault", UI_MISS + " / " + UI_FAULT, "FETCH does not call the MMU yet"]
   ];
   sheet.getRange(1, 1, rows.length, 3).setValues(rows);
-  sheet.getRange("B2").setValue(sheet.getRange("B2").getValue() === "" ? 600 : sheet.getRange("B2").getValue());
-  sheet.getRange("A2").setBackground(UI_ACTIVE);
-  sheet.getRange("A14").setBackground(UI_ACTIVE);
-  sheet.getRange("A15").setBackground(UI_HIGH_Z);
-  sheet.getRange("A16").setBackground(UI_HIT).setFontColor("#FFFFFF");
-  sheet.getRange("A17").setBackground(UI_FAULT).setFontColor("#FFFFFF");
+  sheet.getRange("E1").setValue("Run delay (ms)");
+  if (String(sheet.getRange(UI_DELAY_CELL).getValue()).trim() === "") {
+    sheet.getRange(UI_DELAY_CELL).setValue(600);
+  }
+  sheet.getRange("E3").setValue("Pause flag");
+  sheet.getRange("A15").setBackground(UI_ACTIVE);
+  sheet.getRange("A16").setBackground(UI_HIGH_Z);
+  sheet.getRange("A17").setBackground(UI_HIT).setFontColor("#FFFFFF");
+  sheet.getRange("A18").setBackground(UI_FAULT).setFontColor("#FFFFFF");
 }
 
-/** One micro-step. Same function the CPU already uses. */
 function uiStep() {
+  uiMainSheet();
   stepCPU();
 }
 
 function uiDelayMs() {
   var layout = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(UI_LAYOUT_SHEET);
   if (!layout) return 600;
-  var raw = Number(layout.getRange(UI_DELAY_CELL).getValue());
+  var text = String(layout.getRange(UI_DELAY_CELL).getValue()).trim();
+  if (text === "") return 600;
+  var raw = Number(text);
   if (!(raw >= 0) || raw > 5000) return 600;
   return raw;
 }
 
-/**
- * Run until HALT or PAUSE. Pause is noticed only between steps.
- * Stops after 5000 steps so a missing HLT cannot loop forever.
- */
+function uiPaused() {
+  var layout = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(UI_LAYOUT_SHEET);
+  if (!layout) return false;
+  return String(layout.getRange(UI_PAUSE_CELL).getValue()).trim() === "PAUSE";
+}
+
+/** Run again to clear the pause request and continue the micro-cycle. */
 function uiRun() {
   var sheet = uiMainSheet();
+  var layout = uiLayoutSheet();
+  layout.getRange(UI_PAUSE_CELL).setValue("");
   var delay = uiDelayMs();
   var steps = 0;
   registrarLog(sheet, "UI run. Delay " + delay + " ms.");
   while (steps < 5000) {
     var state = String(sheet.getRange(CPU_STATE).getValue());
-    if (state === "HALT" || state === "PAUSE") break;
+    if (state === "HALT" || uiPaused()) break;
     stepCPU();
     SpreadsheetApp.flush();
     Utilities.sleep(delay);
     steps++;
     state = String(sheet.getRange(CPU_STATE).getValue());
-    if (state === "HALT" || state === "PAUSE") break;
+    if (state === "HALT" || uiPaused()) break;
   }
   registrarLog(sheet, "UI run stopped at " + sheet.getRange(CPU_STATE).getValue() + " after " + steps + " micro-step(s).");
 }
 
-/** Sets PAUSE. uiRun exits on the next check. The old runCPU does not. */
+/** Request a stop between micro-steps without losing the CPU state. */
 function uiPause() {
-  pausarCPU();
+  uiLayoutSheet().getRange(UI_PAUSE_CELL).setValue("PAUSE");
 }
 
-/**
- * Calls resetCPU. That already clears registers, flags, physical RAM,
- * the visual stack, the ALU, the buses and the LOG.
- * It does not clear Swap, TablaPaginas, a cache, the keyboard or the LCD.
- */
+/** Reset existing CPU components; other modules remain unchanged. */
 function uiReset() {
-  resetCPU();
   var sheet = uiMainSheet();
+  resetCPU();
+  var layout = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(UI_LAYOUT_SHEET);
+  if (layout) layout.getRange(UI_PAUSE_CELL).setValue("");
   registrarLog(sheet, "UI reset used resetCPU. Swap, TablaPaginas, caches and I/O were left as they are.");
 }
 
@@ -113,14 +123,13 @@ function uiFormatBusCell(sheet, a1, format) {
   if (text.endsWith("H")) value = parseInt(text.slice(0, -1), 16);
   else if (text.endsWith("B")) value = parseInt(text.slice(0, -1), 2);
   else if (/^[0-9]+$/.test(text)) value = parseInt(text, 10);
-  if (isNaN(value)) return;
-  var byte = value & 0xFF;
-  if (format === "HEX") cell.setValue(byte.toString(16).toUpperCase().padStart(2, "0") + "H");
-  else cell.setValue(String(byte));
+  if (isNaN(value) || value < 0 || value > 255) return;
+  if (format === "HEX") cell.setValue(value.toString(16).toUpperCase().padStart(2, "0") + "H");
+  else cell.setValue(String(value));
 }
 
-/** HEX or DEC for RAM, AX..DX, the ALU, and the internal and data bus values. */
 function uiFormatPanels(format) {
+  uiMainSheet();
   if (format === "HEX") RAM_y_Reg_To_HEX();
   else RAM_y_Reg_To_DEC();
   var sheet = uiMainSheet();
@@ -131,7 +140,6 @@ function uiFormatPanels(format) {
 function uiFormatHex() { uiFormatPanels("HEX"); }
 function uiFormatDec() { uiFormatPanels("DEC"); }
 
-/** Menu only. Do not add onOpen. */
 function uiInstallMenu() {
   SpreadsheetApp.getUi().createMenu("UI")
     .addItem("Show zone map", "uiShowLayout")
