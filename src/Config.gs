@@ -74,6 +74,26 @@ const BUF_COMPONENTES = ["PC","IR","MAR","MDR","AX","BX","CX","DX","ALU","RAM","
 const BUF_BUS_INTERNO   = ["PC","IR","MAR","MDR","AX","BX","CX","DX","ALU"];
 const BUF_BUS_DATOS     = ["MDR","RAM","KBD","LCD"];
 const BUF_BUS_DIRECCION = ["MAR"];
+// --- Palabra de control (#32) ---
+var SENALES_CONTROL = [
+  "En_PC", "Ld_MAR", "Mem_R", "Mem_W", "Ld_MDR", "En_MDR", "Ld_IR",
+  "En_ALU", "Ld_AX", "En_AX", "Ld_BX", "En_BX", "Ld_CX", "En_CX",
+  "Ld_DX", "En_DX", "Ld_PC", "En_IR", "En_MAR", "INC_PC", "IO",
+  "En_KBD", "Ld_LCD"
+];
+
+var CW_PANEL_TITLE_CELL = "J42";
+var CW_HEX_LABEL_CELL = "J43";
+var CW_HEX_VALUE_CELL = "K43";
+var CW_BITS_START_ROW = 44;
+var CW_COL_IZQ_NOM = 10; // J
+var CW_COL_IZQ_VAL = 11; // K
+var CW_COL_DER_NOM = 12; // L
+var CW_COL_DER_VAL = 13; // M
+var CW_COLOR_HEADER = "#7E57C2";
+var CW_COLOR_ACTIVO = "#C8E6C9";
+var CW_COLOR_INACTIVO = "#EEEEEE";
+var MICROCODIGO_SHEET_NAME = "Microcodigo";
 
 // Única configuración de la reserva de E/S del issue 22.
 // null = pendiente: no hay mapa acordado y no se etiqueta ninguna celda.
