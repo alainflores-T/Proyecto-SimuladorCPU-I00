@@ -74,3 +74,17 @@ const BUF_COMPONENTES = ["PC","IR","MAR","MDR","AX","BX","CX","DX","ALU","RAM","
 const BUF_BUS_INTERNO   = ["PC","IR","MAR","MDR","AX","BX","CX","DX","ALU"];
 const BUF_BUS_DATOS     = ["MDR","RAM","KBD","LCD"];
 const BUF_BUS_DIRECCION = ["MAR"];
+
+// Única configuración de la reserva de E/S del issue 22.
+// null = pendiente: no hay mapa acordado y no se etiqueta ninguna celda.
+const RESERVA_ES = null;
+
+// Propuesta NO activa. No está asignada a RESERVA_ES.
+// F0H-F7H y F8H-FFH caerían en el marco 7, que dejaría de ser
+// 32 bytes paginables. Con aceptarMarcoNoPaginable en false,
+// el instalador la rechaza. No copiarla a RESERVA_ES sin acuerdo.
+const PROPUESTA_RESERVA_ES_NO_ACTIVA = {
+  teclado: { inicio: 0xF0, bytes: 8 },
+  lcd: { inicio: 0xF8, bytes: 8 },
+  aceptarMarcoNoPaginable: false
+};
