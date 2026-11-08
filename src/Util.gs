@@ -54,8 +54,47 @@ function registrarLogDetallado(sheet, explicacion) {
     aluOp1, aluOp2, aluSym, aluRes,
         zf, cf, sf,
     (typeof ultimaPalabraHex !== "undefined" ? ultimaPalabraHex : "000000H")
-	
-  ]);
+  ].concat(columnasMemoriaHistorial_(explicacion)));
+}
+
+function columnasMemoriaHistorial_(explicacion) {
+  var dirVirtual = "—";
+  var vpn = "—";
+  var pfn = "—";
+  var pageFault = "No";
+  var l1i = "—";
+  var l1d = "—";
+  var l2 = "—";
+  if (typeof ultimoAccesoMemoria !== "undefined" && ultimoAccesoMemoria) {
+    dirVirtual = ultimoAccesoMemoria.dirVirtual;
+    vpn = ultimoAccesoMemoria.vpn;
+    pfn = ultimoAccesoMemoria.pfn;
+    pageFault = ultimoAccesoMemoria.pageFault;
+    l1i = ultimoAccesoMemoria.l1i;
+    l1d = ultimoAccesoMemoria.l1d;
+    l2 = ultimoAccesoMemoria.l2;
+  }
+  var ex = String(explicacion || "");
+  if (ex.indexOf("PAGE FAULT") !== -1) {
+    pageFault = "Yes";
+    var mVpn = ex.match(/vpn=(\d+)/);
+    if (mVpn) vpn = mVpn[1];
+    var mPfn = ex.match(/pfn=(\d+)/);
+    if (mPfn) pfn = mPfn[1];
+    var mDir = ex.match(/PAGE FAULT\s+([0-9A-Fa-f]{1,3})\b/i);
+    if (mDir) {
+      var hx = mDir[1].toUpperCase();
+      while (hx.length < 3) hx = "0" + hx;
+      dirVirtual = hx + "H";
+    }
+  }
+  if (ex.indexOf("CACHE L1I HIT") !== -1) l1i = "HIT";
+  else if (ex.indexOf("CACHE L1I MISS") !== -1) l1i = "MISS";
+  if (ex.indexOf("CACHE L1D HIT") !== -1) l1d = "HIT";
+  else if (ex.indexOf("CACHE L1D MISS") !== -1) l1d = "MISS";
+  if (ex.indexOf("CACHE L2 HIT") !== -1) l2 = "HIT";
+  else if (ex.indexOf("CACHE L2 MISS") !== -1) l2 = "MISS";
+  return [dirVirtual, vpn, pfn, pageFault, l1i, l1d, l2];
 }
 
 /**
@@ -68,7 +107,7 @@ function limpiarHojaHistorial() {
   
   var ultimaFila = hojaHistorial.getLastRow();
   if (ultimaFila > 1) {
-      hojaHistorial.getRange(2, 1, ultimaFila - 1, 19).clearContent();
+      hojaHistorial.getRange(2, 1, ultimaFila - 1, 26).clearContent();
   }
 }
 
@@ -124,11 +163,18 @@ function crearEstructuraHistorial() {
     "ZF (Zero)",
     "CF (Carry)",
     "SF (Sign)",
-	"Palabra de Control"
+	"Palabra de Control",
+    "Dirección Virtual",
+    "VPN",
+    "PFN",
+    "Page Fault",
+    "L1I",
+    "L1D",
+    "L2"
   ]];
   
   // Escribir los encabezados en la Fila 1
-  var rangoEncabezado = hojaHistorial.getRange(1, 1, 1, 19);
+  var rangoEncabezado = hojaHistorial.getRange(1, 1, 1, 26);
   hojaHistorial.setColumnWidth(19, 130);
   rangoEncabezado.setValues(encabezados);
   
@@ -147,6 +193,9 @@ function crearEstructuraHistorial() {
   hojaHistorial.setColumnWidth(3, 350);  // Acción Realizada (Más ancha para la explicación)
     for (var c = 4; c <= 18; c++) {
     hojaHistorial.setColumnWidth(c, 100); // Resto de columnas de registros y ALU
+  }
+  for (var extra = 20; extra <= 26; extra++) {
+    hojaHistorial.setColumnWidth(extra, 120);
   }
   
   SpreadsheetApp.flush();

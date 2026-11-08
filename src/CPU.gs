@@ -1,6 +1,7 @@
 // CPU.gs - Núcleo de control de micro-operaciones
 // Issue 25: con la memoria virtual apagada, fetch, LD y ST siguen igual.
 // Encendida y sin programa cargado, RUN no lee la RAM vacía.
+// Issue 16: el ciclo integra MMU, caché e I/O y amplía el Historial.
 // --- FUNCIÓN RUN (Ejecución automática) ---
 function hojaDeLaCpu_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -50,6 +51,7 @@ function resetCPU() {
   limpiarFondoRegistros(sheet);
   limpiarHojaHistorial();
   if (typeof resetContadoresCache === "function") resetContadoresCache();
+  resetearAccesoMemoriaLog_();
 
   // Limpiar Registros
   sheet.getRange(REG_PC).setValue("00H");
@@ -92,6 +94,161 @@ function exigirModoMemoriaCPU_() {
   throw new Error("CPU: la memoria virtual está activa y no hay un programa cargado. Ejecute cargarProgramaVirtual o Load selected program. No se leyó la RAM.");
 }
 
+// #16: traduce con la MMU, resuelve Page Fault sin perder PC/MAR,
+// pasa el fetch por L1I y los datos por L1D, y deja metadatos para el Historial.
+var ultimoAccesoMemoria = {
+  dirVirtual: "—",
+  vpn: "—",
+  pfn: "—",
+  pageFault: "No",
+  l1i: "—",
+  l1d: "—",
+  l2: "—"
+};
+
+function resetearAccesoMemoriaLog_() {
+  ultimoAccesoMemoria.dirVirtual = "—";
+  ultimoAccesoMemoria.vpn = "—";
+  ultimoAccesoMemoria.pfn = "—";
+  ultimoAccesoMemoria.pageFault = "No";
+  ultimoAccesoMemoria.l1i = "—";
+  ultimoAccesoMemoria.l1d = "—";
+  ultimoAccesoMemoria.l2 = "—";
+}
+
+function hexDirLog_(n) {
+  if (typeof n !== "number" || !isFinite(n) || n < 0) return "—";
+  var s = Math.floor(n).toString(16).toUpperCase();
+  while (s.length < 3) s = "0" + s;
+  return s + "H";
+}
+
+function parsearDireccionMar_(mar) {
+  if (typeof mar === "number" && isFinite(mar)) return Math.floor(mar);
+  var t = String(mar || "").trim().toUpperCase();
+  if (/^[0-9A-F]{1,3}H$/.test(t)) return parseInt(t.substring(0, t.length - 1), 16);
+  if (/^[0-9A-F]{1,3}$/.test(t)) return parseInt(t, 16);
+  return null;
+}
+
+function longitudEventosCache_() {
+  if (typeof leerContadoresCache !== "function") return 0;
+  try {
+    var c = leerContadoresCache();
+    return (c && c.eventos) ? c.eventos.length : 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
+function aplicarEventosCacheAlLog_(desde) {
+  if (typeof leerContadoresCache !== "function") return;
+  var c;
+  try { c = leerContadoresCache(); } catch (e) { return; }
+  var ev = (c && c.eventos) || [];
+  var i;
+  for (i = desde; i < ev.length; i++) {
+    var s = String(ev[i] || "");
+    if (s.indexOf("L1I") !== -1) ultimoAccesoMemoria.l1i = s.indexOf("HIT") !== -1 ? "HIT" : "MISS";
+    if (s.indexOf("L1D") !== -1) ultimoAccesoMemoria.l1d = s.indexOf("HIT") !== -1 ? "HIT" : "MISS";
+    if (s.indexOf("L2") !== -1) ultimoAccesoMemoria.l2 = s.indexOf("HIT") !== -1 ? "HIT" : "MISS";
+  }
+}
+
+function esPageFault_(e) {
+  if (!e) return false;
+  if (e.name === "PageFault") return true;
+  return String(e.message || "").indexOf("PageFault") === 0;
+}
+
+function anotarTraduccion_(mar, fallo) {
+  var yaHuboFallo = ultimoAccesoMemoria.pageFault === "Yes";
+  var n = parsearDireccionMar_(mar);
+  var virtual = (typeof memoriaVirtualActiva === "function" && memoriaVirtualActiva());
+  ultimoAccesoMemoria.dirVirtual = n === null ? String(mar || "—") : hexDirLog_(n);
+  ultimoAccesoMemoria.pageFault = (fallo || yaHuboFallo) ? "Yes" : "No";
+  if (!virtual) {
+    ultimoAccesoMemoria.vpn = "—";
+    ultimoAccesoMemoria.pfn = "—";
+    return;
+  }
+  if (n === null || typeof translate !== "function") {
+    ultimoAccesoMemoria.vpn = n === null ? "—" : String(n >> 5);
+    if (!fallo) ultimoAccesoMemoria.pfn = "—";
+    return;
+  }
+  try {
+    var t = translate(n);
+    ultimoAccesoMemoria.vpn = String(t.vpn);
+    ultimoAccesoMemoria.pfn = String(t.pfn);
+  } catch (e) {
+    ultimoAccesoMemoria.vpn = String(n >> 5);
+    if (!ultimoAccesoMemoria.pfn || ultimoAccesoMemoria.pfn === "—") ultimoAccesoMemoria.pfn = "—";
+  }
+}
+
+function asegurarPaginaPresente_(sheet) {
+  if (!(typeof memoriaVirtualActiva === "function" && memoriaVirtualActiva())) return false;
+  if (typeof translate !== "function") return false;
+  var mar = sheet.getRange(REG_MAR).getValue();
+  try {
+    translate(mar);
+    return false;
+  } catch (e) {
+    if (!esPageFault_(e)) throw e;
+    if (typeof leerMemoriaCPU !== "function") throw e;
+    var mdr = sheet.getRange(REG_MDR).getValue();
+    leerMemoriaCPU(sheet);
+    sheet.getRange(REG_MDR).setValue(mdr);
+    return true;
+  }
+}
+
+function leerMemoriaIntegrada(sheet, tipo) {
+  var mar = sheet.getRange(REG_MAR).getValue();
+  var desde = longitudEventosCache_();
+  var huboFallo = false;
+  try {
+    huboFallo = asegurarPaginaPresente_(sheet);
+  } catch (e) {
+    anotarTraduccion_(mar, esPageFault_(e));
+    throw e;
+  }
+  anotarTraduccion_(mar, huboFallo);
+  var dato;
+  if (typeof leerCacheCPU === "function") {
+    dato = leerCacheCPU(sheet, tipo || "dato");
+  } else if (typeof leerMemoriaCPU === "function") {
+    dato = leerMemoriaCPU(sheet);
+  } else {
+    dato = transferLecturaMemoria(sheet);
+  }
+  aplicarEventosCacheAlLog_(desde);
+  return dato;
+}
+
+function escribirMemoriaIntegrada(sheet) {
+  var mar = sheet.getRange(REG_MAR).getValue();
+  var desde = longitudEventosCache_();
+  var huboFallo = false;
+  try {
+    huboFallo = asegurarPaginaPresente_(sheet);
+  } catch (e) {
+    anotarTraduccion_(mar, esPageFault_(e));
+    throw e;
+  }
+  anotarTraduccion_(mar, huboFallo);
+  if (typeof escribirCacheCPU === "function") {
+    escribirCacheCPU(sheet);
+  } else if (typeof escribirMemoriaCPU === "function") {
+    escribirMemoriaCPU(sheet);
+  } else {
+    transferEscrituraMemoria(sheet);
+  }
+  aplicarEventosCacheAlLog_(desde);
+}
+
+
 function stepCPU() {
   var sheet = hojaDeLaCpu_();
   var estadoActual = sheet.getRange(CPU_STATE).getValue();
@@ -101,6 +258,7 @@ function stepCPU() {
     return;
   }
   exigirModoMemoriaCPU_();
+  resetearAccesoMemoriaLog_();
   
   // >>> BORRA LOS COLORES DEL PASO ANTERIOR ANTES DE EJECUTAR EL SIGUIENTE <<<
   limpiarFondoRegistros(sheet);
@@ -140,19 +298,35 @@ function faseFetch1(sheet) {
 
 function faseFetch2(sheet) {
     if (typeof cpuVirtualModeOn === "function" && cpuVirtualModeOn()) {
-    cpuApplyVirtualFetch2(sheet);
+    var fetched = cpuApplyVirtualFetch2(sheet);
+    if (!fetched || !fetched.ok) return;
+    resaltarCelda(sheet, REG_MDR, "#FFF59D");
+    registrarLogDetallado(sheet, "FETCH_2: lectura virtual L1I → MDR (" + sheet.getRange(REG_MDR).getValue() + ")");
     return;
   }
   sheet.getRange(CPU_STATE).setValue("FETCH_2");
   var marVal = sheet.getRange(REG_MAR).getValue();
-  var datoRAM = (typeof leerCacheCPU === "function") ? leerCacheCPU(sheet, "instruccion") : ((typeof leerMemoriaCPU === "function") ? leerMemoriaCPU(sheet) : transferLecturaMemoria(sheet));
+  var datoRAM = leerMemoriaIntegrada(sheet, "instruccion");
   resaltarCelda(sheet, REG_MDR, "#FFF59D");
   registrarLogDetallado(sheet, "Bus externo: lectura RAM[" + marVal + "] → MDR (" + datoRAM + ")");
 }
 
 function faseFetch3(sheet) {
     if (typeof cpuVirtualModeOn === "function" && cpuVirtualModeOn()) {
-    cpuApplyVirtualFetch3(sheet);
+    var fetched = cpuApplyVirtualFetch3(sheet);
+    if (!fetched || !fetched.ok) return;
+    resaltarCelda(sheet, REG_IR, "#C8E6C9");
+    busInterno.driver = "ALU";
+    busInterno.value = sheet.getRange(REG_PC).getValue();
+    mostrarBuses(sheet);
+    limpiarSenalesBuffers();
+    marcarEnable("ALU", busInterno.value, "interno");
+    marcarLoad("PC");
+    pintarBuffers(sheet);
+    senalIncPC = 1;
+    if (typeof publicarPalabraDesdeEstado === "function") publicarPalabraDesdeEstado(sheet);
+    resaltarCelda(sheet, REG_PC, "#BBDEFB");
+    registrarLogDetallado(sheet, "FETCH_3: IR cargado y avance del PC (memoria virtual)");
     return;
   }
   sheet.getRange(CPU_STATE).setValue("FETCH_3");
@@ -283,7 +457,7 @@ function faseExecute(sheet) {
     SpreadsheetApp.flush();
     Utilities.sleep(400);
 
-    var datoRAM = (typeof leerCacheCPU === "function") ? leerCacheCPU(sheet, "dato") : ((typeof leerMemoriaCPU === "function") ? leerMemoriaCPU(sheet) : transferLecturaMemoria(sheet));
+    var datoRAM = leerMemoriaIntegrada(sheet, "dato");
     resaltarCelda(sheet, REG_MDR, "#FFF59D");
     SpreadsheetApp.flush();
     Utilities.sleep(400);
@@ -312,9 +486,13 @@ function faseExecute(sheet) {
     SpreadsheetApp.flush();
     Utilities.sleep(400);
 
-    if (typeof escribirCacheCPU === "function") escribirCacheCPU(sheet);
-    else if (typeof escribirMemoriaCPU === "function") escribirMemoriaCPU(sheet);
-    else transferEscrituraMemoria(sheet);
+    escribirMemoriaIntegrada(sheet);
+  } else if (inst.op === "IN") {
+    ioExecuteIn(sheet, dest, src);
+    return;
+  } else if (inst.op === "OUT") {
+    ioExecuteOut(sheet, dest, src);
+    return;
   }
 
   registrarLog(sheet, "EXECUTE: " + inst.op + " completado");
