@@ -121,14 +121,18 @@ function cpuReadVirtualByte(sheet, address) {
   var cell = sheet.getRange(REG_MAR);
   if (cell.setNumberFormat) cell.setNumberFormat("@");
   cell.setValue(cpuFormatAddress(address));
-  var raw = leerMemoriaCPU(sheet);
+  var raw = (typeof leerMemoriaIntegrada === "function")
+    ? leerMemoriaIntegrada(sheet, "instruccion")
+    : leerMemoriaCPU(sheet);
   var byte = cpuParseMemoryByte(raw);
   if (byte === null) return { ok: false, reason: "Virtual byte at " + cpuFormatAddress(address) + " is not numeric." };
   return { ok: true, byte: byte };
 }
 
 function cpuFetchVirtualInstruction(sheet) {
-  if (typeof leerMemoriaCPU !== "function") return { ok: false, reason: "leerMemoriaCPU is missing." };
+  if (typeof leerMemoriaIntegrada !== "function" && typeof leerMemoriaCPU !== "function") {
+    return { ok: false, reason: "leerMemoriaCPU is missing." };
+  }
   var pc = cpuParseAddress(sheet.getRange(REG_PC).getValue());
   if (pc === null) return { ok: false, reason: "PC is not a virtual address." };
   var map = cpuLoadBoundaries();
