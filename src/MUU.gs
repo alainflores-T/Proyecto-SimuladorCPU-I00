@@ -1747,7 +1747,8 @@ var MMU = (function () {
     cargarPrograma: cargarProgramaVirtual_,
     reemplazo: registrarReemplazo_,
     marcarAcceso: marcarAcceso_,
-    silenciar: function (silencio) { animarBuses_ = !silencio; }
+    silenciar: function (silencio) { animarBuses_ = !silencio; },
+    reiniciarPresencia: reiniciarTabla_
   };
 })();
 
@@ -1769,3 +1770,5 @@ function registrarReemplazoPagina(fn) { return MMU.reemplazo(fn); }
 function marcarAccesoMMU(direccion, escritura) { return MMU.marcarAcceso(direccion, escritura); }
 function silenciarAnimacionMMU(silencio) { return MMU.silenciar(!!silencio); }
 function instalarYProbarIssue25() { return MMU.probar25(); }
+function instalarTablaPaginas() { return MMU.instalar(); }
+function reiniciarPresenciaPaginas() { return MMU.reiniciarPresencia(); }

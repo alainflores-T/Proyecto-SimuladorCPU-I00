@@ -77,6 +77,7 @@ function loaderBuild(sourceText) {
 }
 
 function loaderIoOptInOn() {
+  if (typeof POLITICA_ES !== "undefined" && POLITICA_ES && POLITICA_ES.nombre === "ram-dedicada-16") return false;
   if (typeof ioOptInOn === "function") return ioOptInOn();
   if (typeof PropertiesService === "undefined") return false;
   var key = typeof IO_OPT_IN_KEY !== "undefined" ? IO_OPT_IN_KEY : "IO_OPT_IN";
@@ -136,6 +137,13 @@ function loadSelectedProgram() {
     return { ok: false, reason: failed, program: program.name };
   }
   cpuSaveBoundaries(built.boundaries);
+  if (typeof esRamInstalar === "function") {
+    try { esRamInstalar(); } catch (esErr) { loaderLog("E/S dedicada no instalada: " + esErr.message); }
+  }
+  if (typeof asegurarPoliticaDemostracion === "function") {
+    try { asegurarPoliticaDemostracion("FIFO"); }
+    catch (polErr) { loaderLog("Política de reemplazo no quedó visible: " + polErr.message); }
+  }
   if (typeof RAMFisica !== "undefined" && RAMFisica.vaciar) RAMFisica.vaciar();
   if (typeof resetCaches === "function") {
     try { resetCaches(); }
@@ -151,7 +159,7 @@ function loadSelectedProgram() {
     if (Object.prototype.hasOwnProperty.call(built.pages, vpn)) listed.push(Number(vpn));
   }
   listed.sort(function (a, b) { return a - b; });
-  var sheet = loaderLog("Loaded " + program.name + " (VPN " + listed.join(", ") + "). Swap holds machine bytes, RAM is clear, and every page is absent. Keyboard and LCD RAM were not written: the personal I/O opt-in is off and RESERVA_ES was not changed.");
+  var sheet = loaderLog("Loaded " + program.name + " (VPN " + listed.join(", ") + "). Swap holds machine bytes, RAM frames are clear, pages are absent, FIFO is selected. Keyboard and LCD use the dedicated 16-byte I/O RAM, outside the 8 frames.");
   var pc = sheet.getRange(REG_PC);
   if (pc.setNumberFormat) pc.setNumberFormat("@");
   pc.setValue("00H");

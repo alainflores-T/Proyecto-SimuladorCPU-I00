@@ -54,8 +54,26 @@ function ioFrameFree(frame) {
   return { ok: true };
 }
 
-/** Both reads and writes require the physical-test guard. */
+function esPoliticaDedicada_() {
+  return typeof POLITICA_ES !== "undefined" && POLITICA_ES && POLITICA_ES.nombre === "ram-dedicada-16" && POLITICA_ES.solapaMarcos === false;
+}
+
+/** Both reads and writes require the physical-test guard, salvo la RAM dedicada. */
 function ioCanUseRam() {
+  if (esPoliticaDedicada_()) {
+    if (typeof esRamLista !== "function" || !esRamLista()) {
+      return { ok: false, reason: "La RAM de E/S dedicada no está instalada. Ejecute prepararSimulador. No se tocó ningún marco." };
+    }
+    return {
+      ok: true,
+      map: {
+        keyboard: { start: 0, bytes: 8 },
+        lcd: { start: 8, bytes: 8 },
+        dedicada: true
+      },
+      frames: []
+    };
+  }
   var checked = ioValidatePersonalMap();
   if (!checked.ok) return checked;
   if (!ioOptInOn()) return { ok: false, reason: "Personal I/O opt-in is off. Shared RESERVA_ES is still null. No RAM access." };
@@ -95,6 +113,7 @@ function ioParseStoredByte(value) {
 function ioReadBytes(region) {
   var gate = ioCanUseRam();
   if (!gate.ok) return gate;
+  if (gate.map && gate.map.dedicada && typeof esRamLeerRegion === "function") return esRamLeerRegion(region);
   if (typeof readPhysical !== "function") return { ok: false, reason: "readPhysical is missing." };
   var bytes = [];
   for (var i = 0; i < region.bytes; i++) {
@@ -108,6 +127,7 @@ function ioReadBytes(region) {
 function ioWriteBytes(region, bytes) {
   var gate = ioCanUseRam();
   if (!gate.ok) return gate;
+  if (gate.map && gate.map.dedicada && typeof esRamEscribirRegion === "function") return esRamEscribirRegion(region, bytes);
   if (!bytes || bytes.length !== region.bytes) return { ok: false, reason: "Expected " + region.bytes + " bytes." };
   if (typeof writePhysical !== "function") return { ok: false, reason: "writePhysical is missing." };
   var previous = ioReadBytes(region);

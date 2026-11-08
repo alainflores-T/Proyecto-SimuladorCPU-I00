@@ -14,27 +14,12 @@ function hojaDeLaCpu_() {
 }
 
 function runCPU() {
+  // Un lote corto. La corrida continua vive en el panel: el cliente vuelve
+  // entre lotes y puede pausar. Un while hasta HALT no se puede interrumpir.
+  if (typeof uiLoteDesdeMenu === "function") return uiLoteDesdeMenu();
   var sheet = hojaDeLaCpu_();
-  var estadoActual = sheet.getRange(CPU_STATE).getValue();
-  
-  if (estadoActual === "HALT") {
-    registrarLog(sheet, "SISTEMA DETENIDO. Presiona Reset antes de volver a ejecutar.");
-    return;
-  }
-  exigirModoMemoriaCPU_();
-  
-  registrarLog(sheet, "▶️ EJECUCIÓN AUTOMÁTICA (RUN) INICIADA");
-  
-  // Ejecuta pasos en bucle hasta que encuentre un HALT
-  while (estadoActual !== "HALT") {
-    limpiarFondoRegistros(sheet); // Limpia colores del paso anterior
-    stepCPU();
-    SpreadsheetApp.flush(); // Fuerza a Google Sheets a mostrar los cambios en pantalla
-    Utilities.sleep(600);   // Pausa de 600ms para que puedas ver qué está pasando
-    estadoActual = sheet.getRange(CPU_STATE).getValue();
-  }
-  
-  registrarLog(sheet, "⏹️ EJECUCIÓN AUTOMÁTICA FINALIZADA");
+  registrarLog(sheet, "RUN: el panel no está cargado. Use Step.");
+  return { ok: false, reason: "panel" };
 }
 function pausarCPU() {
   var sheet = hojaDeLaCpu_();
@@ -51,6 +36,7 @@ function resetCPU() {
   limpiarFondoRegistros(sheet);
   limpiarHojaHistorial();
   if (typeof resetContadoresCache === "function") resetContadoresCache();
+  if (typeof cpuUltimoFetch !== "undefined") cpuUltimoFetch = null;
   resetearAccesoMemoriaLog_();
 
   // Limpiar Registros
@@ -204,12 +190,31 @@ function asegurarPaginaPresente_(sheet) {
   }
 }
 
+function formatearByteCpu_(dato) {
+  if (typeof dato === "number" && dato === dato && Math.floor(dato) === dato && dato >= 0 && dato <= 255) {
+    var h = dato.toString(16).toUpperCase();
+    if (h.length < 2) h = "0" + h;
+    return h + "H";
+  }
+  return dato;
+}
+
+function silenciarMmuDurante_(fn) {
+  var silenciar = typeof silenciarAnimacionMMU === "function";
+  if (silenciar) silenciarAnimacionMMU(true);
+  try {
+    return fn();
+  } finally {
+    if (silenciar) silenciarAnimacionMMU(false);
+  }
+}
+
 function leerMemoriaIntegrada(sheet, tipo) {
   var mar = sheet.getRange(REG_MAR).getValue();
   var desde = longitudEventosCache_();
   var huboFallo = false;
   try {
-    huboFallo = asegurarPaginaPresente_(sheet);
+    huboFallo = silenciarMmuDurante_(function () { return asegurarPaginaPresente_(sheet); });
   } catch (e) {
     anotarTraduccion_(mar, esPageFault_(e));
     throw e;
@@ -217,11 +222,12 @@ function leerMemoriaIntegrada(sheet, tipo) {
   anotarTraduccion_(mar, huboFallo);
   var dato;
   if (typeof leerCacheCPU === "function") {
-    dato = leerCacheCPU(sheet, tipo || "dato");
+    dato = formatearByteCpu_(leerCacheCPU(sheet, tipo || "dato"));
+    if (typeof presentarAccesoMemoria === "function") presentarAccesoMemoria(sheet, mar, dato, false);
   } else if (typeof leerMemoriaCPU === "function") {
-    dato = leerMemoriaCPU(sheet);
+    dato = formatearByteCpu_(leerMemoriaCPU(sheet));
   } else {
-    dato = transferLecturaMemoria(sheet);
+    dato = formatearByteCpu_(transferLecturaMemoria(sheet));
   }
   aplicarEventosCacheAlLog_(desde);
   return dato;
@@ -232,14 +238,16 @@ function escribirMemoriaIntegrada(sheet) {
   var desde = longitudEventosCache_();
   var huboFallo = false;
   try {
-    huboFallo = asegurarPaginaPresente_(sheet);
+    huboFallo = silenciarMmuDurante_(function () { return asegurarPaginaPresente_(sheet); });
   } catch (e) {
     anotarTraduccion_(mar, esPageFault_(e));
     throw e;
   }
   anotarTraduccion_(mar, huboFallo);
+  var datoEscrito = sheet.getRange(REG_MDR).getValue();
   if (typeof escribirCacheCPU === "function") {
     escribirCacheCPU(sheet);
+    if (typeof presentarAccesoMemoria === "function") presentarAccesoMemoria(sheet, mar, datoEscrito, true);
   } else if (typeof escribirMemoriaCPU === "function") {
     escribirMemoriaCPU(sheet);
   } else {
@@ -320,6 +328,7 @@ function faseFetch3(sheet) {
     busInterno.value = sheet.getRange(REG_PC).getValue();
     mostrarBuses(sheet);
     limpiarSenalesBuffers();
+    if (typeof setControl === "function") setControl(sheet, { rd: 0, wr: 0, io: 0 });
     marcarEnable("ALU", busInterno.value, "interno");
     marcarLoad("PC");
     pintarBuffers(sheet);
@@ -343,6 +352,7 @@ function faseFetch3(sheet) {
   busInterno.value = sheet.getRange(REG_PC).getValue();
   mostrarBuses(sheet);
   limpiarSenalesBuffers();
+  if (typeof setControl === "function") setControl(sheet, { rd: 0, wr: 0, io: 0 });
   marcarEnable("ALU", busInterno.value, "interno");
   marcarLoad("PC");
   pintarBuffers(sheet);

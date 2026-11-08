@@ -1,7 +1,7 @@
 ; Program 3. Touch 9 virtual pages of 32 bytes. Four ST instructions are dirty writes.
 ; Pages: 0 (code), 2, 3, 5, 7, 9, 11, 14, 15. More than the 8 physical frames.
-; Page faults, replacement and cache hits are not produced by assemble().
-; Fetch still uses physical RAM until issue #25 connects the MMU.
+; assemble() does not raise faults. The CPU does, once this image is loaded
+; with virtual memory, FIFO and the cache turned on.
   LD AX, [40H]         ; read page 2
   LD BX, [A0H]         ; read page 5
   ADD AX, BX           ; AX = byte[40H] + byte[A0H]. No memory access

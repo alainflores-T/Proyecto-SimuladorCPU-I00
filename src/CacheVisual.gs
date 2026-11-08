@@ -2,7 +2,9 @@
 // Issue 29: color y contadores del acceso. No cambia la política del 28.
 // L2 solo cuenta cuando L1 falla. Un rango no cacheable no cuenta.
 // Un acceso que lanza no cuenta. Step y Run usan el mismo leerCacheCPU.
-// La animación con espera está apagada (0 ms). activarAnimacionCache(40) la enciende, tope 40 ms y 8 bytes.
+// La espera en el servidor sigue en 0 ms para no quemar el tiempo de Apps Script.
+// El panel pinta los eventos reales de anotarEventosCache. activarAnimacionCache(40)
+// enciende además el barrido de 8 celdas, con tope de 40 ms.
 
 var CACHE_CONTADORES_CLAVE = "CACHE_CONTADORES_v1";
 var CACHE_ANIM_CLAVE = "CACHE_ANIM_MS_v1";

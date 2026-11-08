@@ -5,6 +5,8 @@
  * Physical text mode does not use this file.
  */
 var LOADER_BOUNDARIES_KEY = "LOADER_BOUNDARIES";
+// FETCH_2 deja aquí la instrucción ya leída. FETCH_3 la consume y no vuelve a tocar la caché.
+var cpuUltimoFetch = null;
 
 function cpuVirtualModeOn() {
   return typeof memoriaVirtualActiva === "function" && !!memoriaVirtualActiva();
@@ -161,7 +163,11 @@ function cpuStopFetch(sheet, reason) {
 
 function cpuApplyVirtualFetch2(sheet) {
   var fetched = cpuFetchVirtualInstruction(sheet);
-  if (!fetched.ok) return cpuStopFetch(sheet, fetched.reason);
+  if (!fetched.ok) {
+    cpuUltimoFetch = null;
+    return cpuStopFetch(sheet, fetched.reason);
+  }
+  cpuUltimoFetch = fetched;
   sheet.getRange(CPU_STATE).setValue("FETCH_2");
   var cell = sheet.getRange(REG_MDR);
   if (cell.setNumberFormat) cell.setNumberFormat("@");
@@ -171,8 +177,12 @@ function cpuApplyVirtualFetch2(sheet) {
 
 function cpuApplyVirtualFetch3(sheet) {
   var previous = String(sheet.getRange(REG_MDR).getValue() || "");
-  var fetched = cpuFetchVirtualInstruction(sheet);
-  if (!fetched.ok) return cpuStopFetch(sheet, fetched.reason);
+  var fetched = cpuUltimoFetch;
+  if (!fetched) {
+    fetched = cpuFetchVirtualInstruction(sheet);
+    if (!fetched.ok) return cpuStopFetch(sheet, fetched.reason);
+  }
+  cpuUltimoFetch = null;
   if (previous && previous !== fetched.hex && typeof registrarLog === "function") {
     registrarLog(sheet, "FETCH: MDR showed " + previous + " but live bytes are " + fetched.hex + ". IR uses the live bytes.");
   }

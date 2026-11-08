@@ -417,3 +417,4 @@ function escribirByteSwap(direccion, valor) { return SwapVM.escribirByte(direcci
 function marcarPaginaEnRAM(vpn, enRam) { return SwapVM.marcar(vpn, enRam); }
 function cargarProgramaEnSwap() { return SwapVM.cargarPrograma(); }
 function instalarYProbarIssue23() { return SwapVM.probar(); }
+function instalarSwap() { return SwapVM.instalar(); }

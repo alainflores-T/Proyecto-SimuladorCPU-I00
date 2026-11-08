@@ -89,6 +89,19 @@ function fijarPoliticaReemplazo(politica) {
 function usarFIFO() { return fijarPoliticaReemplazo("FIFO"); }
 function usarLRU() { return fijarPoliticaReemplazo("LRU"); }
 
+// El cargador la llama para que el noveno fallo tenga víctima sin un clic extra.
+// Si la hoja Reemplazo no se puede crear, la política igual queda en propiedades.
+function asegurarPoliticaDemostracion(politica) {
+  if (politica !== "LRU") politica = "FIFO";
+  try { instalarReemplazo_(); }
+  catch (eInst) { /* la propiedad se graba abajo aunque el panel no esté */ }
+  PropertiesService.getDocumentProperties().setProperty(REEMPLAZO_CLAVE, politica);
+  var hoja = null;
+  try { hoja = hojaReemplazo_(); } catch (eHoja) { hoja = null; }
+  if (hoja && esNuestraReemplazo_(hoja)) pintarPolitica_(hoja, politica);
+  return politica;
+}
+
 function instalarReemplazo_() {
   exigirIssue25_();
   var libro = libroReemplazo_();

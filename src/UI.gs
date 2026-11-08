@@ -1,6 +1,9 @@
 /**
- * UI controls for issue #13. No onOpen hook.
- * Preserve CPU_STATE when pausing so the micro-cycle can resume.
+ * Controles. onOpen está en Arranque.gs y solo crea menús.
+ * RUN no bloquea el servidor hasta HALT: cada llamada ejecuta un lote
+ * y devuelve el control. El panel repite el lote con el mismo token.
+ * PAUSE se lee entre lotes. Un clic de menú no puede cortar un bucle que
+ * todavía no ha retornado; por eso el bucle largo ya no existe.
  */
 var UI_LAYOUT_SHEET = "Layout";
 var UI_DELAY_CELL = "E2";
@@ -40,12 +43,12 @@ function uiShowLayout() {
     ["Tri-state buffers", "Hoja 1 columns J:M from row 28", "Existing"],
     ["Swap, 16 pages", "Sheet Swap, after instalarYProbarIssue23", "Not drawn here"],
     ["Frame table P, PFN, Dirty, Ref", "Sheet TablaPaginas, after instalarYProbarIssue24", "Not drawn here"],
-    ["Caches, hit and miss", "No sheet yet", "Waiting"],
-    ["Keyboard queue and LCD", "No sheet yet. RESERVA_ES is null", "Waiting"],
-    ["Active wire", UI_ACTIVE, "Driven bus"],
-    ["High-Z wire", UI_HIGH_Z, "Undriven bus"],
-    ["Hit", UI_HIT, "No cache panel to paint"],
-    ["Miss or page fault", UI_MISS + " / " + UI_FAULT, "FETCH does not call the MMU yet"]
+    ["Caches, hit and miss", "Hoja Caches. Contadores en PropertiesService", "Existente"],
+    ["Keyboard queue and LCD", "Hoja Perifericos, 16 B fuera de los marcos", "RAM dedicada"],
+    ["Active wire", UI_ACTIVE, "Bus conducido"],
+    ["High-Z wire", UI_HIGH_Z, "Bus en ZZ"],
+    ["Hit", UI_HIT, "Evento real de la caché"],
+    ["Miss or page fault", UI_MISS + " / " + UI_FAULT, "Evento real de caché o de la MMU"]
   ];
   sheet.getRange(1, 1, rows.length, 3).setValues(rows);
   sheet.getRange("E1").setValue("Run delay (ms)");
@@ -60,8 +63,10 @@ function uiShowLayout() {
 }
 
 function uiStep() {
+  if (uiRunActiva_()) return { ok: false, reason: "Hay un RUN activo. Pause antes de Step.", snapshot: uiSnapshot() };
   uiMainSheet();
   stepCPU();
+  return { ok: true, snapshot: uiSnapshot() };
 }
 
 function uiDelayMs() {
@@ -80,25 +85,85 @@ function uiPaused() {
   return String(layout.getRange(UI_PAUSE_CELL).getValue()).trim() === "PAUSE";
 }
 
-/** Run again to clear the pause request and continue the micro-cycle. */
-function uiRun() {
+var UI_LOTE_MAX = 16;
+var UI_TOKEN_KEY = "UI_RUN_TOKEN";
+var UI_RUN_FLAG = "UI_RUN_ACTIVA";
+var UI_RUN_HEARTBEAT = "UI_RUN_HEARTBEAT";
+
+function uiProps_() {
+  return PropertiesService.getDocumentProperties();
+}
+
+function uiRunActiva_() {
+  var props = uiProps_();
+  if (props.getProperty(UI_RUN_FLAG) !== "1") return false;
+  var beat = parseInt(props.getProperty(UI_RUN_HEARTBEAT) || "0", 10);
+  if (beat && (new Date().getTime() - beat) > 30000) return false;
+  return true;
+}
+
+function uiComenzarEjecucion() {
+  if (uiRunActiva_()) return { ok: false, reason: "Ya hay un RUN con token vigente. Espere el lote o pause." };
+  var token = String(new Date().getTime()) + "-" + Math.floor(Math.random() * 1000000);
+  var props = uiProps_();
+  props.setProperty(UI_TOKEN_KEY, token);
+  props.setProperty(UI_RUN_FLAG, "1");
+  props.setProperty(UI_RUN_HEARTBEAT, String(new Date().getTime()));
+  uiLayoutSheet().getRange(UI_PAUSE_CELL).setValue("");
+  return { ok: true, token: token, snapshot: uiSnapshot() };
+}
+
+function uiTerminarEjecucion_() {
+  var props = uiProps_();
+  if (props.deleteProperty) {
+    props.deleteProperty(UI_TOKEN_KEY);
+    props.deleteProperty(UI_RUN_FLAG);
+    props.deleteProperty(UI_RUN_HEARTBEAT);
+  } else {
+    props.setProperty(UI_RUN_FLAG, "0");
+    props.setProperty(UI_TOKEN_KEY, "");
+  }
+}
+
+function uiLoteRun(token) {
+  var props = uiProps_();
+  if (!token || props.getProperty(UI_TOKEN_KEY) !== String(token) || props.getProperty(UI_RUN_FLAG) !== "1") {
+    return { ok: false, reason: "Token de RUN inválido. No se ejecutó un segundo ciclo.", snapshot: uiSnapshot() };
+  }
+  props.setProperty(UI_RUN_HEARTBEAT, String(new Date().getTime()));
   var sheet = uiMainSheet();
-  var layout = uiLayoutSheet();
-  layout.getRange(UI_PAUSE_CELL).setValue("");
-  var delay = uiDelayMs();
+  if (uiPaused()) {
+    uiTerminarEjecucion_();
+    return { ok: true, pausa: true, continuar: false, pasos: 0, snapshot: uiSnapshot() };
+  }
   var steps = 0;
-  registrarLog(sheet, "UI run. Delay " + delay + " ms.");
-  while (steps < 5000) {
-    var state = String(sheet.getRange(CPU_STATE).getValue());
-    if (state === "HALT" || uiPaused()) break;
-    stepCPU();
-    SpreadsheetApp.flush();
-    Utilities.sleep(delay);
+  var state = String(sheet.getRange(CPU_STATE).getValue());
+  while (steps < UI_LOTE_MAX && state !== "HALT" && !uiPaused()) {
+    try {
+      stepCPU();
+    } catch (ePaso) {
+      uiTerminarEjecucion_();
+      return { ok: false, reason: String(ePaso && ePaso.message ? ePaso.message : ePaso), pasos: steps, snapshot: uiSnapshot() };
+    }
     steps++;
     state = String(sheet.getRange(CPU_STATE).getValue());
-    if (state === "HALT" || uiPaused()) break;
   }
-  registrarLog(sheet, "UI run stopped at " + sheet.getRange(CPU_STATE).getValue() + " after " + steps + " micro-step(s).");
+  var pausa = uiPaused();
+  var seguir = state !== "HALT" && !pausa;
+  if (!seguir) uiTerminarEjecucion_();
+  else props.setProperty(UI_RUN_HEARTBEAT, String(new Date().getTime()));
+  return { ok: true, pausa: pausa, continuar: seguir, pasos: steps, estado: state, snapshot: uiSnapshot() };
+}
+
+function uiLoteDesdeMenu() {
+  var inicio = uiComenzarEjecucion();
+  if (!inicio.ok) return inicio;
+  return uiLoteRun(inicio.token);
+}
+
+/** Un lote. El panel encadena los siguientes con el token. */
+function uiRun() {
+  return uiLoteDesdeMenu();
 }
 
 /** Request a stop between micro-steps without losing the CPU state. */
@@ -106,14 +171,72 @@ function uiPause() {
   uiLayoutSheet().getRange(UI_PAUSE_CELL).setValue("PAUSE");
 }
 
-/** Reset existing CPU components; other modules remain unchanged. */
-function uiReset() {
+/** RESET: registros, buses y PC. No vacía marcos, swap, caché ni E/S. */
+function reiniciarCpu() {
   var sheet = uiMainSheet();
-  resetCPU();
+  uiTerminarEjecucion_();
   var layout = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(UI_LAYOUT_SHEET);
   if (layout) layout.getRange(UI_PAUSE_CELL).setValue("");
-  registrarLog(sheet, "UI reset used resetCPU. Swap, TablaPaginas, caches and I/O were left as they are.");
+  if (typeof cpuUltimoFetch !== "undefined") cpuUltimoFetch = null;
+  sheet.getRange(REG_PC).setValue("00H");
+  sheet.getRange(REG_IR).setValue("00H");
+  sheet.getRange(REG_IR_MAQ).setValue("");
+  sheet.getRange(REG_MAR).setValue("00H");
+  sheet.getRange(REG_MDR).setValue("00H");
+  sheet.getRange(REG_AX).setValue("00H");
+  sheet.getRange(REG_BX).setValue("00H");
+  sheet.getRange(REG_CX).setValue("00H");
+  sheet.getRange(REG_DX).setValue("00H");
+  sheet.getRange(FLAG_ZF).setValue(0);
+  sheet.getRange(FLAG_CF).setValue(0);
+  sheet.getRange(FLAG_SF).setValue(0);
+  sheet.getRange(ALU_OP1).setValue("");
+  sheet.getRange(ALU_OP2).setValue("");
+  sheet.getRange(ALU_SYM).setValue("");
+  sheet.getRange(ALU_RES).setValue("");
+  sheet.getRange(CPU_STATE).setValue("READY");
+  if (typeof resetearAccesoMemoriaLog_ === "function") resetearAccesoMemoriaLog_();
+  if (typeof inicializarPanelBuses === "function") inicializarPanelBuses(sheet);
+  if (typeof resetearBuses === "function") resetearBuses(sheet);
+  registrarLog(sheet, "RESET: CPU en READY. Marcos, swap, caché y E/S se conservan.");
+  return { ok: true, snapshot: uiSnapshot() };
 }
+
+/**
+ * CLEAR: vacía la RAM física y la presencia de páginas. Conserva el swap
+ * del último LOAD, incluidas las páginas ya escritas por un write-back.
+ * No restaura solo la imagen original si el desalojo sucio ya tocó el swap.
+ */
+function limpiarMaquina() {
+  var sheet = uiMainSheet();
+  uiTerminarEjecucion_();
+  if (typeof reiniciarPresenciaPaginas === "function") {
+    try { reiniciarPresenciaPaginas(); } catch (ePag) {}
+  }
+  resetCPU();
+  if (typeof resetCaches === "function") {
+    try { resetCaches(); } catch (eCache) {}
+  }
+  if (typeof esRamLimpiar === "function") {
+    try { esRamLimpiar(); } catch (eEs) {}
+  }
+  if (typeof PropertiesService !== "undefined") {
+    var props = PropertiesService.getDocumentProperties();
+    if (props.deleteProperty) {
+      props.deleteProperty("KBD_META");
+      props.deleteProperty("LCD_CURSOR");
+    }
+  }
+  var layout = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(UI_LAYOUT_SHEET);
+  if (layout) layout.getRange(UI_PAUSE_CELL).setValue("");
+  sheet.getRange(CPU_STATE).setValue("READY");
+  sheet.getRange(REG_PC).setValue("00H");
+  registrarLog(sheet, "CLEAR: RAM vacía y páginas ausentes. El swap del LOAD se conserva.");
+  return { ok: true, snapshot: uiSnapshot() };
+}
+
+function uiReset() { return reiniciarCpu(); }
+function uiClear() { return limpiarMaquina(); }
 
 function uiFormatBusCell(sheet, a1, format) {
   var cell = sheet.getRange(a1);
@@ -143,11 +266,85 @@ function uiFormatDec() { uiFormatPanels("DEC"); }
 function uiInstallMenu() {
   SpreadsheetApp.getUi().createMenu("UI")
     .addItem("Show zone map", "uiShowLayout")
+    .addItem("Abrir panel", "mostrarPanelSimulador")
     .addItem("Step", "uiStep")
-    .addItem("Run", "uiRun")
+    .addItem("Run un lote", "uiRun")
     .addItem("Pause", "uiPause")
-    .addItem("Reset", "uiReset")
+    .addItem("Reset CPU", "uiReset")
+    .addItem("Clear máquina", "uiClear")
     .addItem("Panels to HEX", "uiFormatHex")
     .addItem("Panels to DEC", "uiFormatDec")
     .addToUi();
+}
+
+function uiLeerPaginas_() {
+  var paginas = [];
+  if (typeof SpreadsheetApp === "undefined") return paginas;
+  var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("TablaPaginas");
+  if (!hoja) return paginas;
+  var i;
+  for (i = 0; i < 16; i++) {
+    paginas.push({
+      vpn: i,
+      p: hoja.getRange(3 + i, 2).getValue(),
+      pfn: hoja.getRange(3 + i, 3).getValue(),
+      dirty: hoja.getRange(3 + i, 4).getValue(),
+      ref: hoja.getRange(3 + i, 5).getValue()
+    });
+  }
+  return paginas;
+}
+
+function uiSnapshot() {
+  var sheet = null;
+  try { sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME); } catch (e) { sheet = null; }
+  function celda(a1) {
+    if (!sheet) return "";
+    return sheet.getRange(a1).getValue();
+  }
+  var cache = null;
+  if (typeof leerContadoresCache === "function") {
+    try { cache = leerContadoresCache(); } catch (eCache) { cache = null; }
+  }
+  var teclado = null;
+  var lcd = null;
+  if (typeof esRamLeerRegion === "function" && typeof esRamLista === "function" && esRamLista()) {
+    teclado = esRamLeerRegion({ start: 0, bytes: 8 });
+    lcd = esRamLeerRegion({ start: 8, bytes: 8 });
+  }
+  var eventos = (cache && cache.eventos) ? cache.eventos.slice(-8) : [];
+  return {
+    estado: celda(CPU_STATE),
+    pc: celda(REG_PC),
+    ir: celda(REG_IR),
+    mar: celda(REG_MAR),
+    mdr: celda(REG_MDR),
+    ax: celda(REG_AX),
+    bx: celda(REG_BX),
+    cx: celda(REG_CX),
+    dx: celda(REG_DX),
+    zf: celda(FLAG_ZF),
+    cf: celda(FLAG_CF),
+    sf: celda(FLAG_SF),
+    alu: { op1: celda(ALU_OP1), op2: celda(ALU_OP2), sym: celda(ALU_SYM), res: celda(ALU_RES) },
+    buses: {
+      interno: celda(BUS_INT_VAL),
+      conductorInterno: celda(BUS_INT_DRIVER),
+      direccion: celda(BUS_EXT_ADDR),
+      datos: celda(BUS_EXT_DATA),
+      conductorDatos: celda(BUS_EXT_DRIVER),
+      rd: celda(BUS_CTRL_RD),
+      wr: celda(BUS_CTRL_WR),
+      clk: celda(BUS_CTRL_CLK),
+      io: celda(BUS_CTRL_IO)
+    },
+    palabra: (typeof ultimaPalabraHex !== "undefined") ? ultimaPalabraHex : "",
+    cache: cache,
+    eventos: eventos,
+    paginas: uiLeerPaginas_(),
+    teclado: teclado && teclado.ok ? teclado.bytes : [],
+    lcd: lcd && lcd.ok ? lcd.bytes : [],
+    pausa: uiPaused(),
+    runActivo: uiRunActiva_()
+  };
 }

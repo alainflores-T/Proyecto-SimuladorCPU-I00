@@ -120,6 +120,8 @@ function filasTablaMicrocodigo() {
     ["ST T1", "Dirección (IR) → MAR", "En_IR, Ld_MAR", hexDeLista(["En_IR", "Ld_MAR"])],
     ["ST T2", "Dato (ej. AX) → MDR", "En_AX, Ld_MDR", hexDeLista(["En_AX", "Ld_MDR"])],
     ["ST T3", "MDR → RAM (escritura)", "Mem_W, En_MDR, En_MAR", hexDeLista(["Mem_W", "En_MDR", "En_MAR"])],
+    ["IN", "Teclado → registro (ej. AX)", "IO, En_KBD, Ld_AX", hexDeLista(["IO", "En_KBD", "Ld_AX"])],
+    ["OUT", "Registro (ej. AX) → LCD", "IO, Mem_W, En_AX, Ld_LCD", hexDeLista(["IO", "Mem_W", "En_AX", "Ld_LCD"])],
     ["NOP / HLT", "Sin transferencias", "(ninguna)", hexDeLista([])]
   ];
 }
@@ -144,7 +146,7 @@ function inicializarHojaMicrocodigo() {
   hoja.setColumnWidth(4, 130);
 
   var nota = "Bit más significativo = En_PC. Orden: " + SENALES_CONTROL.join(", ") +
-    ". En_MAR aparece en lecturas/escrituras porque MAR conduce el bus de direcciones. En_KBD y Ld_LCD quedan en 0 hasta el I/O (#33–#35).";
+    ". En_MAR aparece en lecturas/escrituras porque MAR conduce el bus de direcciones. IN enciende IO y En_KBD. OUT enciende IO y Ld_LCD. El HEX de esta tabla sale de hexDeLista y es el mismo de docs/control-word.md.";
   hoja.getRange(filas.length + 3, 1).setValue(nota);
 }
 

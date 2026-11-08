@@ -142,12 +142,16 @@ function transfer(bus, source, destinations, sheet) {
   marcarEnable(source.name, source.value, busNombre);
   var conflicto = detectarContencion(busNombre);
   if (conflicto) {
+    // El enable ya está pintado para mostrar quién chocó.
+    // El destino no se escribe: la recuperación no tiene que deshacer un registro.
+    senalIncPC = 0;
     mostrarBuses(sheet);
-  pintarBuffers(sheet);
-  senalIncPC = 0;
-  if (typeof publicarPalabraDesdeEstado === "function") publicarPalabraDesdeEstado(sheet);
+    pintarBuffers(sheet);
+    if (typeof publicarPalabraDesdeEstado === "function") publicarPalabraDesdeEstado(sheet);
+    errorContencion(sheet, busNombre, conflicto);
   }
 
+  senalIncPC = 0;
   bus.driver = source.name;
   bus.value = source.value;
   if (destinations && destinations.length) {
@@ -158,7 +162,51 @@ function transfer(bus, source, destinations, sheet) {
   }
   mostrarBuses(sheet);
   pintarBuffers(sheet);
+  if (typeof publicarPalabraDesdeEstado === "function") publicarPalabraDesdeEstado(sheet);
   return source.value;
+}
+
+// Después de una contención la CPU queda en HALT y los destinos no cambiaron.
+// Esta función suelta los buses a High-Z y vuelve a READY. No repite la transferencia.
+function recuperarContencion(sheet) {
+  if (!sheet) sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  limpiarSenalesBuffers();
+  liberarBus(busInterno);
+  liberarBus(busDir);
+  liberarBus(busDatos);
+  senalIncPC = 0;
+  if (typeof ultimasSenalesControl !== "undefined") {
+    ultimasSenalesControl = { rd: 0, wr: 0, io: 0 };
+  }
+  sheet.getRange(BUF_HEADER_ROW, BUF_NAME_COL, 1, 4)
+    .setBackground("#FFF9C4")
+    .setFontColor("#000000");
+  mostrarBuses(sheet);
+  pintarBuffers(sheet);
+  setControl(sheet, { rd: 0, wr: 0, io: 0 });
+  sheet.getRange(CPU_STATE).setValue("READY");
+  if (typeof publicarPalabraDesdeEstado === "function") publicarPalabraDesdeEstado(sheet);
+  if (typeof registrarLog === "function") {
+    registrarLog(sheet, "Contención recuperada. Los destinos de la transferencia rechazada no se escribieron.");
+  }
+  return { ok: true, estado: "READY" };
+}
+
+// Pinta el bus de direcciones y el de datos con un valor que el ciclo ya obtuvo.
+// No vuelve a leer la RAM ni la caché.
+function presentarAccesoMemoria(sheet, mar, dato, escritura) {
+  limpiarSenalesBuffers();
+  liberarBus(busInterno);
+  transfer(busDir, { name: "MAR", value: mar }, [], sheet);
+  if (escritura) {
+    setControl(sheet, { rd: 0, wr: 1, io: 0 });
+    transfer(busDatos, { name: "MDR", value: dato }, [], sheet);
+  } else {
+    setControl(sheet, { rd: 1, wr: 0, io: 0 });
+    transfer(busDatos, { name: "RAM", value: dato }, ["MDR"], sheet);
+  }
+  pulsoReloj(sheet);
+  return dato;
 }
 
 function textoBus(val) {
@@ -194,10 +242,16 @@ function setControl(sheet, senales) {
   sheet.getRange(BUS_CTRL_IO).setValue(senales.io ? 1 : 0);
 }
 
+function milisegundosPulso_() {
+  if (typeof MOTOR_PULSO_MS === "number" && MOTOR_PULSO_MS >= 0) return MOTOR_PULSO_MS;
+  return 40;
+}
+
 function pulsoReloj(sheet) {
   sheet.getRange(BUS_CTRL_CLK).setValue(1);
-  SpreadsheetApp.flush();
-  Utilities.sleep(150);
+  if (SpreadsheetApp && SpreadsheetApp.flush) SpreadsheetApp.flush();
+  var ms = milisegundosPulso_();
+  if (ms > 0 && typeof Utilities !== "undefined" && Utilities.sleep) Utilities.sleep(ms);
   sheet.getRange(BUS_CTRL_CLK).setValue(0);
 }
 

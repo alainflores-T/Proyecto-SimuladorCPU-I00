@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: "Segoe UI", sans-serif; margin: 0; color: #1a1a1a; background: #f4f6f8; }
+    header { padding: 12px 14px; background: #102a43; color: #fff; }
+    header h1 { font-size: 16px; margin: 0 0 4px; }
+    header p { margin: 0; font-size: 12px; color: #d9e2ec; }
+    .bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px; background: #fff; border-bottom: 1px solid #d9e2ec; }
+    button { border: 0; border-radius: 4px; padding: 6px 10px; background: #243b53; color: #fff; cursor: pointer; }
+    button.alt { background: #627d98; }
+    button.stop { background: #9b1c1c; }
+    #estado { margin: 8px 12px; font-size: 13px; }
+    section { margin: 8px 12px 12px; background: #fff; border: 1px solid #d9e2ec; border-radius: 6px; padding: 8px; }
+    h2 { font-size: 13px; margin: 0 0 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    td { padding: 2px 4px; }
+    .zz { background: #b0bec5; }
+    .on { background: #c8e6c9; }
+    .hit { background: #c8e6c9; }
+    .miss { background: #ffcdd2; }
+    .fault { background: #b71c1c; color: #fff; }
+    .lcd { font-family: monospace; font-size: 18px; letter-spacing: 4px; background: #1565c0; color: #fff; padding: 6px; }
+    .pending { font-size: 11px; color: #7b341e; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Simulador SIS-131</h1>
+    <p class="pending">Nombre y logotipo del equipo: pendientes de acuerdo. No hay marca inventada.</p>
+  </header>
+  <div class="bar">
+    <button onclick="cargar()">LOAD</button>
+    <button onclick="step()">STEP</button>
+    <button onclick="run()">RUN</button>
+    <button class="stop" onclick="pause()">PAUSE</button>
+    <button class="alt" onclick="resetCpu()">RESET</button>
+    <button class="alt" onclick="clearMachine()">CLEAR</button>
+  </div>
+  <div id="estado">Sin snapshot.</div>
+  <section>
+    <h2>CPU</h2>
+    <table id="cpu"></table>
+  </section>
+  <section>
+    <h2>ALU y banderas</h2>
+    <table id="alu"></table>
+  </section>
+  <section>
+    <h2>Buses</h2>
+    <table id="buses"></table>
+  </section>
+  <section>
+    <h2>Caché (eventos reales)</h2>
+    <table id="cache"></table>
+    <div id="eventos"></div>
+  </section>
+  <section>
+    <h2>Páginas P / PFN / Dirty / Ref</h2>
+    <table id="paginas"></table>
+  </section>
+  <section>
+    <h2>Teclado y LCD</h2>
+    <div id="lcd" class="lcd"></div>
+    <div id="teclado"></div>
+  </section>
+  <script>
+    var token = null;
+    var corriendo = false;
+    function glyph(n) {
+      n = Number(n) || 0;
+      if (n >= 32 && n <= 126) return String.fromCharCode(n);
+      if (n === 0) return "·";
+      return ".";
+    }
+    function pintar(s) {
+      if (!s) return;
+      document.getElementById("estado").textContent = "Estado " + s.estado + "  PC " + s.pc + "  palabra " + (s.palabra || "") + (s.pausa ? "  PAUSA" : "");
+      document.getElementById("cpu").innerHTML =
+        "<tr><td>AX</td><td>" + s.ax + "</td><td>BX</td><td>" + s.bx + "</td></tr>" +
+        "<tr><td>CX</td><td>" + s.cx + "</td><td>DX</td><td>" + s.dx + "</td></tr>" +
+        "<tr><td>PC</td><td>" + s.pc + "</td><td>IR</td><td>" + s.ir + "</td></tr>" +
+        "<tr><td>MAR</td><td>" + s.mar + "</td><td>MDR</td><td>" + s.mdr + "</td></tr>";
+      document.getElementById("alu").innerHTML =
+        "<tr><td>OP1</td><td>" + s.alu.op1 + "</td><td>OP2</td><td>" + s.alu.op2 + "</td></tr>" +
+        "<tr><td>SYM</td><td>" + s.alu.sym + "</td><td>RES</td><td>" + s.alu.res + "</td></tr>" +
+        "<tr><td>ZF</td><td>" + s.zf + "</td><td>CF</td><td>" + s.cf + "</td><td>SF</td><td>" + s.sf + "</td></tr>";
+      var b = s.buses || {};
+      function cls(v) { return String(v) === "ZZ" || v === "" || v == null ? "zz" : "on"; }
+      document.getElementById("buses").innerHTML =
+        "<tr class='" + cls(b.interno) + "'><td>Interno</td><td>" + b.interno + "</td><td>" + b.conductorInterno + "</td></tr>" +
+        "<tr class='" + cls(b.direccion) + "'><td>Dirección</td><td>" + b.direccion + "</td></tr>" +
+        "<tr class='" + cls(b.datos) + "'><td>Datos</td><td>" + b.datos + "</td><td>" + b.conductorDatos + "</td></tr>" +
+        "<tr><td>RD</td><td>" + b.rd + "</td><td>WR " + b.wr + "</td><td>IO " + b.io + "</td></tr>";
+      var c = s.cache || {};
+      function fila(nombre, caja) {
+        if (!caja) return "";
+        return "<tr><td>" + nombre + "</td><td>H " + caja.hits + "</td><td>M " + caja.misses + "</td><td>" + caja.tasa + "%</td></tr>";
+      }
+      document.getElementById("cache").innerHTML = fila("L1I", c.l1i) + fila("L1D", c.l1d) + fila("L2", c.l2);
+      var ev = s.eventos || [];
+      document.getElementById("eventos").innerHTML = ev.map(function (e) {
+        var clase = String(e).indexOf("MISS") !== -1 ? "miss" : "hit";
+        return "<div class='" + clase + "'>" + e + "</div>";
+      }).join("");
+      var pags = s.paginas || [];
+      document.getElementById("paginas").innerHTML = pags.filter(function (p) { return String(p.p) === "1"; }).map(function (p) {
+        var clase = String(p.dirty) === "1" ? "miss" : "";
+        return "<tr class='" + clase + "'><td>VPN " + p.vpn + "</td><td>PFN " + p.pfn + "</td><td>D " + p.dirty + "</td><td>R " + p.ref + "</td></tr>";
+      }).join("") || "<tr><td>Ninguna página presente</td></tr>";
+      var lcd = s.lcd || [];
+      document.getElementById("lcd").textContent = (lcd.length ? lcd : [0,0,0,0,0,0,0,0]).map(glyph).join("");
+      document.getElementById("teclado").textContent = "Cola: " + (s.teclado || []).join(" ");
+    }
+    function fail(err) { document.getElementById("estado").textContent = String(err && err.message ? err.message : err); }
+    function cargar() {
+      google.script.run.withSuccessHandler(function (r) { pintar(r && r.snapshot); }).withFailureHandler(fail).loadSelectedProgram();
+    }
+    function step() {
+      google.script.run.withSuccessHandler(function (r) { pintar(r && r.snapshot); }).withFailureHandler(fail).uiStep();
+    }
+    function resetCpu() {
+      corriendo = false; token = null;
+      google.script.run.withSuccessHandler(function (r) { pintar(r && r.snapshot); }).withFailureHandler(fail).uiReset();
+    }
+    function clearMachine() {
+      corriendo = false; token = null;
+      google.script.run.withSuccessHandler(function (r) { pintar(r && r.snapshot); }).withFailureHandler(fail).uiClear();
+    }
+    function pause() {
+      corriendo = false;
+      google.script.run.withSuccessHandler(function () {}).withFailureHandler(fail).uiPause();
+    }
+    function lote() {
+      if (!corriendo || !token) return;
+      google.script.run.withSuccessHandler(function (r) {
+        if (r && r.snapshot) pintar(r.snapshot);
+        if (r && r.ok && r.continuar && corriendo) lote();
+        else corriendo = false;
+      }).withFailureHandler(function (e) { corriendo = false; fail(e); }).uiLoteRun(token);
+    }
+    function run() {
+      if (corriendo) return;
+      google.script.run.withSuccessHandler(function (r) {
+        if (!r || !r.ok) { fail(r && r.reason); return; }
+        token = r.token;
+        corriendo = true;
+        if (r.snapshot) pintar(r.snapshot);
+        lote();
+      }).withFailureHandler(fail).uiComenzarEjecucion();
+    }
+    google.script.run.withSuccessHandler(pintar).withFailureHandler(fail).uiSnapshot();
+  </script>
+</body>
+</html>

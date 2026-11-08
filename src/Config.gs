@@ -95,8 +95,20 @@ var CW_COLOR_ACTIVO = "#C8E6C9";
 var CW_COLOR_INACTIVO = "#EEEEEE";
 var MICROCODIGO_SHEET_NAME = "Microcodigo";
 
-// Única configuración de la reserva de E/S del issue 22.
-// null = pendiente: no hay mapa acordado y no se etiqueta ninguna celda.
+// Los 256 B siguen siendo 8 marcos paginables de 32 B.
+// Teclado (8 B) y vídeo del LCD (8 B) no se recortan de esos marcos:
+// viven en una RAM de E/S aparte (POLITICA_ES). RESERVA_ES null significa
+// «no hay hueco dentro de O8:AD23». Ver docs/decision-es-vm.md.
+var POLITICA_ES = {
+  nombre: "ram-dedicada-16",
+  tecladoBytes: 8,
+  lcdBytes: 8,
+  ramPaginable: 256,
+  marcos: 8,
+  bytesPorMarco: 32,
+  solapaMarcos: false
+};
+
 const RESERVA_ES = null;
 
 // Propuesta NO activa. No está asignada a RESERVA_ES.
