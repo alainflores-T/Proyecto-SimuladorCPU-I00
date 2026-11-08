@@ -1,21 +1,13 @@
 /**
- * ProgramLoader.gs — Load button for issue #20.
- * Does not replace src/loader.gs (cargarDesdeHojaProgramas stays as it is).
- * Does not define onOpen.
- *
- * Swap, the frame table (P, Dirty, Ref) and page faults are not on develop yet.
- * This button checks the selected catalog program and splits it into 32-byte
- * pages, then stops before writing RAM or Swap.
+ * ProgramLoader.gs — Load catalog programs as machine bytes.
+ * Does not replace src/loader.gs or define onOpen.
+ * Does not change RESERVA_ES. Refuses the personal physical-I/O opt-in.
+ * Instruction boundaries store lengths only; live bytes are authoritative.
  */
-
 var LOADER_PAGE_BYTES = 32;
 var LOADER_SPACE_BYTES = 512;
+var LOADER_PAGE_COUNT = 16;
 
-/**
- * image is assemble().image: address -> byte.
- * Returns { vpn: [32 bytes] } for every page that contains at least one byte.
- * VPN = floor(address / 32). Holes inside a touched page are 0.
- */
 function loaderPagesFromImage(image) {
   var pages = {};
   var addr;
@@ -35,7 +27,6 @@ function loaderPagesFromImage(image) {
   return pages;
 }
 
-/** Why an assemble() result must not be loaded. Empty string means allowed. */
 function loaderRejectReason(result) {
   if (!result || result.ok !== true) {
     var errors = result && result.errors ? result.errors.join("\n") : "Assembly failed.";
@@ -47,6 +38,51 @@ function loaderRejectReason(result) {
   return "";
 }
 
+function loaderBlankPage() {
+  var page = [];
+  var i;
+  for (i = 0; i < LOADER_PAGE_BYTES; i++) page.push(0);
+  return page;
+}
+
+function loaderWritePlan(pages) {
+  var plan = [];
+  var vpn;
+  for (vpn = 0; vpn < LOADER_PAGE_COUNT; vpn++) {
+    plan.push({ vpn: vpn, bytes: loaderBlankPage() });
+  }
+  var keys = [];
+  for (vpn in pages) {
+    if (Object.prototype.hasOwnProperty.call(pages, vpn)) keys.push(Number(vpn));
+  }
+  keys.sort(function (a, b) { return a - b; });
+  var i;
+  for (i = 0; i < keys.length; i++) {
+    plan.push({ vpn: keys[i], bytes: pages[keys[i]] });
+  }
+  return plan;
+}
+
+function loaderBuild(sourceText) {
+  var assembled = assemble(sourceText);
+  var reason = loaderRejectReason(assembled);
+  if (reason) return { ok: false, reason: reason };
+  var pages = loaderPagesFromImage(assembled.image);
+  return {
+    ok: true,
+    pages: pages,
+    plan: loaderWritePlan(pages),
+    boundaries: loaderBoundariesFromListing(assembled.listing)
+  };
+}
+
+function loaderIoOptInOn() {
+  if (typeof ioOptInOn === "function") return ioOptInOn();
+  if (typeof PropertiesService === "undefined") return false;
+  var key = typeof IO_OPT_IN_KEY !== "undefined" ? IO_OPT_IN_KEY : "IO_OPT_IN";
+  return PropertiesService.getDocumentProperties().getProperty(key) === "physical-test";
+}
+
 function loaderLog(message) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(typeof SHEET_NAME !== "undefined" ? SHEET_NAME : "Hoja 1") || ss.getActiveSheet();
@@ -54,7 +90,6 @@ function loaderLog(message) {
   return sheet;
 }
 
-/** Reads Directory!B1, assembles, and splits pages. Swap writing waits for #23. */
 function loadSelectedProgram() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var directory = ss.getSheetByName(CATALOG_SHEET);
@@ -63,45 +98,67 @@ function loadSelectedProgram() {
     SpreadsheetApp.getUi().alert("Run catalogInitialize first.");
     return { ok: false, reason: "catalog" };
   }
+  if (loaderIoOptInOn()) {
+    var blockedIo = "Load refused. The personal I/O opt-in is on. Turn it off first. This load enables virtual memory and can overwrite F0H-FFH. RESERVA_ES was not changed.";
+    loaderLog(blockedIo);
+    SpreadsheetApp.getUi().alert(blockedIo);
+    return { ok: false, reason: "io-opt-in" };
+  }
   var name = directory.getRange(CATALOG_SELECTOR).getValue();
   var program = catalogFindProgram(catalogReadPrograms(sources), name);
   if (!program) {
     SpreadsheetApp.getUi().alert("Select a program in Directory!B1.");
     return { ok: false, reason: "selection" };
   }
-  var assembled = assemble(program.lines.join("\n"));
-  var reason = loaderRejectReason(assembled);
-  if (reason) {
-    loaderLog(reason);
-    SpreadsheetApp.getUi().alert(reason);
-    return { ok: false, reason: reason, program: program.name };
+  var built = loaderBuild(program.lines.join("\n"));
+  if (!built.ok) {
+    loaderLog(built.reason);
+    SpreadsheetApp.getUi().alert(built.reason);
+    return { ok: false, reason: built.reason, program: program.name };
   }
-  var pages = loaderPagesFromImage(assembled.image);
-  var vpns = [];
-  var vpn;
-  for (vpn in pages) if (Object.prototype.hasOwnProperty.call(pages, vpn)) vpns.push(Number(vpn));
-  vpns.sort(function (a, b) { return a - b; });
-
-  if (typeof vmWriteSwapPage !== "function") {
-    var blocked = "Load stopped for " + program.name + ". " + vpns.length +
-      " page(s) are ready (VPN " + vpns.join(", ") +
-      ") but there is no Swap API yet (#23, #24, #25). RAM was not cleared.";
-    loaderLog(blocked);
-    SpreadsheetApp.getUi().alert(blocked);
-    return { ok: false, blocked: "swap", program: program.name, vpns: vpns, pages: pages };
+  if (typeof vmWriteSwapPage !== "function" || typeof cpuSaveBoundaries !== "function") {
+    var missing = "Load stopped. vmWriteSwapPage or the boundary helper is missing. RAM, Swap and the boundary map were not changed.";
+    loaderLog(missing);
+    SpreadsheetApp.getUi().alert(missing);
+    return { ok: false, reason: "swap" };
   }
-
-  for (var p = 0; p < vpns.length; p++) vmWriteSwapPage(vpns[p], pages[vpns[p]]);
+  cpuClearBoundaries();
+  var step;
+  try {
+    for (step = 0; step < built.plan.length; step++) {
+      vmWriteSwapPage(built.plan[step].vpn, built.plan[step].bytes);
+    }
+  } catch (err) {
+    cpuClearBoundaries();
+    var failed = "Load failed before READY. " + (err && err.message ? err.message : err);
+    loaderLog(failed);
+    SpreadsheetApp.getUi().alert(failed);
+    return { ok: false, reason: failed, program: program.name };
+  }
+  cpuSaveBoundaries(built.boundaries);
   if (typeof RAMFisica !== "undefined" && RAMFisica.vaciar) RAMFisica.vaciar();
-  if (typeof vaciarColaTeclado === "function") vaciarColaTeclado();
-  if (typeof limpiarLCD === "function") limpiarLCD();
-  var sheet = loaderLog("Loaded " + program.name + " into Swap. " + vpns.length + " page(s).");
-  sheet.getRange(REG_PC).setValue("00H");
+  if (typeof resetCaches === "function") {
+    try { resetCaches(); }
+    catch (cacheErr) { loaderLog("Caches were not cleared: " + cacheErr.message); }
+  }
+  if (typeof resetContadoresCache === "function") {
+    try { resetContadoresCache(); }
+    catch (countErr) { loaderLog("Cache counters were not cleared: " + countErr.message); }
+  }
+  var listed = [];
+  var vpn;
+  for (vpn in built.pages) {
+    if (Object.prototype.hasOwnProperty.call(built.pages, vpn)) listed.push(Number(vpn));
+  }
+  listed.sort(function (a, b) { return a - b; });
+  var sheet = loaderLog("Loaded " + program.name + " (VPN " + listed.join(", ") + "). Swap holds machine bytes, RAM is clear, and every page is absent. Keyboard and LCD RAM were not written: the personal I/O opt-in is off and RESERVA_ES was not changed.");
+  var pc = sheet.getRange(REG_PC);
+  if (pc.setNumberFormat) pc.setNumberFormat("@");
+  pc.setValue("00H");
   sheet.getRange(CPU_STATE).setValue("READY");
-  return { ok: true, program: program.name, vpns: vpns };
+  return { ok: true, program: program.name, vpns: listed };
 }
 
-/** Menu only. Do not add onOpen in this file. */
 function loaderInstallMenu() {
   SpreadsheetApp.getUi().createMenu("Loader")
     .addItem("Load selected program", "loadSelectedProgram")
