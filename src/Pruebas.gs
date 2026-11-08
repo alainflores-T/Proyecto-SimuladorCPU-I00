@@ -125,6 +125,12 @@ function simProbarTodo() {
     simAfirmar(fallos, novena.ok === false, "la novena se rechaza");
     simAfirmar(fallos, e.kbdCount === 8, "la cola sigue en 8");
     simAfirmar(fallos, e.ram[0xF0] === 0x41 && e.ram[0xF7] === 0x41, "F0-F7 conservan A");
+    var texto = simEstadoInicial();
+    var hola = simTeclear(texto, "HOLA");
+    simAfirmar(fallos, hola.ok === true && hola.n === 4, "HOLA entra completa");
+    simAfirmar(fallos, texto.kbdCount === 4 && texto.ram[0xF0] === 0x48 && texto.ram[0xF3] === 0x41, "HOLA queda en F0-F3");
+    var sobra = simTeclear(texto, "12345");
+    simAfirmar(fallos, sobra.ok === false && texto.kbdCount === 4, "un texto que no cabe se rechaza entero");
     var lcd = simEstadoInicial();
     simCargarTexto(lcd, "MOV AX, 41H\nOUT [LCD], AX\nOUT [LCD], AX\nOUT [LCD], AX\nOUT [LCD], AX\nOUT [LCD], AX\nOUT [LCD], AX\nOUT [LCD], AX\nOUT [LCD], AX\nOUT [LCD], AX\nHLT\n", "lcd");
     simHastaFin(lcd);

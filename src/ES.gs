@@ -13,15 +13,34 @@ function simCodigoTecla(texto) {
   return { ok: true, byte: code };
 }
 
-function simTeclear(e, texto) {
-  var codigo = simCodigoTecla(texto);
-  if (!codigo.ok) return codigo;
+function simMeterTecla_(e, byte) {
   if (e.kbdCount >= 8) return { ok: false, error: "Cola llena" };
   var pa = 0xF0 + (e.kbdTail & 7);
-  e.ram[pa] = codigo.byte & 255;
+  e.ram[pa] = byte & 255;
   e.kbdTail = (e.kbdTail + 1) & 7;
   e.kbdCount++;
-  return { ok: true, byte: codigo.byte & 255 };
+  return { ok: true, byte: byte & 255 };
+}
+
+function simTeclear(e, texto) {
+  var raw = String(texto === null || typeof texto === "undefined" ? "" : texto);
+  if (raw === "") return { ok: false, error: "Tecla vacía" };
+  if (raw.toUpperCase() === "ENTER") return simMeterTecla_(e, 0x0D);
+  if (raw.length === 1) {
+    var codigo = simCodigoTecla(raw);
+    if (!codigo.ok) return codigo;
+    return simMeterTecla_(e, codigo.byte);
+  }
+  if (e.kbdCount + raw.length > 8) {
+    return { ok: false, error: "Cola de 8. Quedan " + (8 - e.kbdCount) + " huecos." };
+  }
+  var i;
+  for (i = 0; i < raw.length; i++) {
+    if (raw.charCodeAt(i) > 255) return { ok: false, error: "Fuera de un byte" };
+  }
+  var ultimo = 0;
+  for (i = 0; i < raw.length; i++) ultimo = simMeterTecla_(e, raw.charCodeAt(i)).byte;
+  return { ok: true, byte: ultimo, n: raw.length };
 }
 
 function simLimpiarCola(e) {

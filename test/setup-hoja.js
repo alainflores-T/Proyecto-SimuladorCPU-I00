@@ -32,6 +32,9 @@ function simCrearLibroPrueba(opciones) {
       clear: function () { valores = {}; },
       setFrozenRows: function () {},
       setColumnWidth: function () {},
+      setRowHeight: function () {},
+      casillas: checks,
+      validaciones: validaciones,
       setConditionalFormatRules: function (lista) { formatos = lista || []; },
       getConditionalFormatRules: function () { return formatos.slice(); },
       getProtections: function () { return protecciones.slice(); },
@@ -113,8 +116,25 @@ function simCrearLibroPrueba(opciones) {
           setFontSize: function () { return rango; },
           setHorizontalAlignment: function () { return rango; },
           setNumberFormat: function () { return rango; },
+          setWrap: function () { return rango; },
           setDataValidation: function (regla) { validaciones[clave(fila, col)] = regla; return rango; },
+          clearDataValidations: function () {
+            var r;
+            var c;
+            for (r = 0; r < nf; r++) {
+              for (c = 0; c < nc; c++) delete validaciones[clave(fila + r, col + c)];
+            }
+            return rango;
+          },
           insertCheckboxes: function () { checks[clave(fila, col)] = true; },
+          removeCheckboxes: function () {
+            var r;
+            var c;
+            for (r = 0; r < nf; r++) {
+              for (c = 0; c < nc; c++) delete checks[clave(fila + r, col + c)];
+            }
+            return rango;
+          },
           clearContent: function () {
             var r;
             var c;
@@ -129,12 +149,14 @@ function simCrearLibroPrueba(opciones) {
               var g = merges[m];
               var toca = !(g.fila + g.nFilas <= fila || fila + nf <= g.fila || g.col + g.nCols <= col || col + nc <= g.col);
               if (toca) {
-                lista.push({
-                  breakApart: function () {
-                    var k = merges.indexOf(g);
-                    if (k >= 0) merges.splice(k, 1);
-                  }
-                });
+                lista.push((function (grupo) {
+                  return {
+                    breakApart: function () {
+                      var k = merges.indexOf(grupo);
+                      if (k >= 0) merges.splice(k, 1);
+                    }
+                  };
+                })(g));
               }
             }
             return lista;
@@ -205,6 +227,7 @@ function simInstalarServiciosPrueba(libro) {
     newDataValidation: function () {
       var o = {
         requireValueInList: function () { return o; },
+        requireNumberBetween: function () { return o; },
         setAllowInvalid: function () { return o; },
         build: function () { return { tipo: "lista" }; }
       };
@@ -212,6 +235,11 @@ function simInstalarServiciosPrueba(libro) {
     }
   };
   ScriptApp = { getScriptId: function () { return SIM_SCRIPT_COPIA; } };
+  LockService = {
+    getDocumentLock: function () {
+      return { tryLock: function () { return true; }, releaseLock: function () {} };
+    }
+  };
 }
 
 function simProbarSetupHoja() {
@@ -246,13 +274,20 @@ function simProbarSetupHoja() {
   var panel = libro.getSheetByName("PANEL");
   afirmar(String(panel.getRange(1, 1).getValue()).indexOf("Simulador") === 0, "el título del panel se escribió");
   afirmar(String(panel.getRange(4, 4).getValue()) === "CPU", "la CPU está en la hoja principal");
-  afirmar(String(panel.getRange(4, 9).getValue()) === "Buses", "los buses están en la hoja principal");
-  afirmar(String(panel.getRange(22, 1).getValue()) === "Memoria", "la memoria está en la hoja principal");
-  afirmar(String(panel.getRange(22, 10).getValue()) === "Caché", "la caché está en la hoja principal");
-  afirmar(String(panel.getRange(44, 1).getValue()) === "E/S", "la E/S está en la hoja principal");
-  afirmar(String(panel.getRange(23, 1).getValue()).indexOf("7") >= 0, "el riesgo de 7 marcos paginables es visible");
+  afirmar(String(panel.getRange(22, 1).getValue()) === "Buses", "los buses están en la hoja principal");
+  afirmar(String(panel.getRange(34, 1).getValue()) === "Memoria virtual", "la tabla de páginas está en la hoja principal");
+  afirmar(String(panel.getRange(55, 1).getValue()) === "RAM física", "la RAM de 256 bytes está en la hoja principal");
+  afirmar(String(panel.getRange(58, 2).getValue()).indexOf("&") > 0, "cada fila de RAM concatena sus bytes");
+  afirmar(String(panel.getRange(75, 1).getValue()) === "Caché", "la caché está en la hoja principal");
+  afirmar(String(panel.getRange(86, 1).getValue()) === "E/S", "la E/S está en la hoja principal");
+  afirmar(String(panel.getRange(35, 1).getValue()).indexOf("7") >= 0, "el riesgo de 7 marcos paginables es visible");
+  afirmar(String(panel.getRange(19, 4).getValue()) === "Último fallo", "el fallo de página se marca como histórico");
   afirmar(String(panel.getRange(7, 5).getValue()).indexOf("=") === 0, "el PC es una fórmula al estado");
-  afirmar(String(panel.getRange(7, 12).getValue()).indexOf("ZZ") >= 0 || String(panel.getRange(7, 12).getValue()).indexOf("=") === 0, "el bus muestra ZZ o una fórmula");
+  afirmar(String(panel.getRange(17, 6).getValue()).indexOf("&") > 0, "la micro-palabra de 28 bits se arma como texto");
+  afirmar(String(panel.getRange(25, 3).getValue()).indexOf("=") === 0, "el valor del bus es una fórmula");
+  afirmar(panel.getRange(4, 9).getValue() === "", "la presentación no se extiende a la columna I");
+  afirmar(panel.validaciones["9,2"], "B9 tiene la lista P1 P2 P3");
+  afirmar(panel.casillas["5,2"] && panel.casillas["10,2"] && panel.casillas["12,2"], "Step, Cargar y Teclear son casillas");
   afirmar(libro.getSheetByName("CPU").oculta === true, "la pestaña CPU antigua se oculta y no se borra");
   afirmar(libro.getSheetByName("Hoja 1").oculta !== true, "las pestañas heredadas siguen visibles");
   afirmar(libro.getSheetByName("_ESTADO").getRange(1, 1).getValue() === SIM_MAGIA, "la magia del estado quedó escrita");
@@ -269,6 +304,25 @@ function simProbarSetupHoja() {
   afirmar(libro.getSheetByName("Hoja 1") !== null, "las pestañas ajenas siguen en el libro");
   afirmar(libro.getSheetByName("PANEL").getRange(9, 2).getValue() === "P2", "el selector de programa sobrevive al reintento");
   afirmar(libro.getSheetByName("PANEL").getRange(11, 2).getValue() === "H", "la tecla escrita sobrevive al reintento");
+  var posAx = simPosA1_(simCeldaVista("axBin"));
+  afirmar(libro.getSheetByName("_ESTADO").getRange(posAx.fila, posAx.col).getValue() === "00101010", "el binario de AX conserva los ceros");
+
+  panel.getRange(9, 2).setValue("0000000H");
+  panel.getRange(19, 3).insertCheckboxes();
+  panel.getRange(20, 3).setDataValidation({ tipo: "vieja" });
+  simPrepararEstaCopia();
+  afirmar(panel.getRange(9, 2).getValue() === "P1", "0000000H no se acepta como programa");
+  afirmar(!panel.casillas["19,3"], "la casilla vieja C19 se quita");
+  afirmar(!panel.validaciones["20,3"], "la validación vieja fuera de los controles se quita");
+  afirmar(!!panel.validaciones["9,2"], "la lista del selector vuelve a quedar en B9");
+  afirmar(libro.getSheetByName("_ESTADO").getRange(filaAx, 2).getValue() === 42, "limpiar la presentación no borra AX");
+  afirmar(libro.getSheetByName("PROGRAMAS").getRange(5, 2).getValue() === "MOV AX, 01H", "limpiar la presentación no borra el editor");
+
+  panel.getRange(9, 2).setValue("P2");
+  var carga = simCargarDesdePanel();
+  afirmar(String(carga).indexOf("P2") >= 0, "el selector carga el catálogo P2");
+  afirmar(libro.getSheetByName("PROGRAMAS").getRange(5, 2).getValue() === "MOV AX, 01H", "cargar el selector no pisa el editor");
+  afirmar(String(libro.getSheetByName("_ESTADO").getRange(simFilaEscalar("programa"), 2).getValue()) === "P2", "el estado queda con P2");
 
   var choque = false;
   try { libro.insertSheet("programas"); }
