@@ -139,6 +139,10 @@ function faseFetch1(sheet) {
 }
 
 function faseFetch2(sheet) {
+    if (typeof cpuVirtualModeOn === "function" && cpuVirtualModeOn()) {
+    cpuApplyVirtualFetch2(sheet);
+    return;
+  }
   sheet.getRange(CPU_STATE).setValue("FETCH_2");
   var marVal = sheet.getRange(REG_MAR).getValue();
   var datoRAM = (typeof leerCacheCPU === "function") ? leerCacheCPU(sheet, "instruccion") : ((typeof leerMemoriaCPU === "function") ? leerMemoriaCPU(sheet) : transferLecturaMemoria(sheet));
@@ -147,6 +151,10 @@ function faseFetch2(sheet) {
 }
 
 function faseFetch3(sheet) {
+    if (typeof cpuVirtualModeOn === "function" && cpuVirtualModeOn()) {
+    cpuApplyVirtualFetch3(sheet);
+    return;
+  }
   sheet.getRange(CPU_STATE).setValue("FETCH_3");
   var mdrVal = transferInterna(sheet, "MDR", ["IR"]);
   sheet.getRange(REG_IR_MAQ).setValue("'" + codificarInstruccion(mdrVal));
@@ -322,7 +330,7 @@ function faseStore(sheet) {
 function actualizarPilaInstrucciones(sheet) {
   // 1. Limpiar el fondo de toda la pila (16 posiciones)
   sheet.getRange(STACK_START_ROW, STACK_COL, 16, 1).setBackground(null);
-  
+  if (typeof cpuVirtualModeOn === "function" && cpuVirtualModeOn()) return;
   var estado = sheet.getRange(CPU_STATE).getValue();
   var pcHex = sheet.getRange(REG_PC).getValue();
   var numPC = parseInt(pcHex.toString().replace("H", "").trim(), 16);
