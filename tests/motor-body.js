@@ -268,3 +268,22 @@ check("el eco con una A escribe 65 en F8H y ceros después",
   String(hoja().getRange(CPU_STATE).getValue()) === "HALT" && lcdUna.ok && lcdUna.bytes[0] === 65 && lcdUna.bytes[1] === 0 && readPhysical(0xF8) === 65,
   JSON.stringify(lcdUna.bytes) + " fin=" + (finUna && finUna.estado));
 check("siguen 256 B y el marco 7 no recibe páginas", POLITICA_ES.ramFisica === 256 && presentes() <= 7 && pfnUsados().indexOf("7") === -1, "presentes=" + presentes());
+kbdReset();
+var iLetra;
+for (iLetra = 0; iLetra < 8; iLetra++) {
+  var puesta = kbdEnqueueByte((65 + iLetra));
+  if (!puesta.ok) check("encolar " + iLetra + " en llamada aparte", false, puesta.reason);
+}
+check("ocho letras quedaron en F0H", readPhysical(0xF0) === 65 && readPhysical(0xF7) === 72 && kbdReadMeta().count === 8);
+var cargaLlena = cargar("Keyboard to LCD");
+check("LOAD deja el cursor del LCD en 0", cargaLlena.ok && lcdReadCursor() === 0, "cursor=" + lcdReadCursor());
+PropertiesService.getDocumentProperties().setProperty("LCD_CURSOR", "8");
+reiniciarCpu();
+var finOcho = correrHastaHalt(160);
+var lcdOcho = esRamLeerRegion(POLITICA_ES.lcd);
+var snapOcho = uiSnapshot();
+var diagOcho = diagnosticarSimulador();
+check("con el cursor heredado en 8 el eco igual escribe ABCDEFGH en F8H",
+  String(hoja().getRange(CPU_STATE).getValue()) === "HALT" && lcdOcho.ok && lcdOcho.bytes.join(",") === "65,66,67,68,69,70,71,72" && readPhysical(0xF8) === 65 && readPhysical(0xFF) === 72 && snapOcho.lcd.join(",") === lcdOcho.bytes.join(","),
+  JSON.stringify(lcdOcho.bytes) + " fin=" + (finOcho && finOcho.estado) + " nota=" + snapOcho.lcdNota);
+check("el diagnóstico muestra F8 y el cursor", String(diagOcho).indexOf("F8=") !== -1 && String(diagOcho).indexOf("cursor=") !== -1, diagOcho);

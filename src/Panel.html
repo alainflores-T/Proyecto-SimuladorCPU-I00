@@ -128,7 +128,7 @@
       document.getElementById("marcos").textContent = "Elegibles " + (s.marcosElegibles || []).join(",") + " · reservado " + s.marcoReservado;
       var lcd = s.lcd && s.lcd.length ? s.lcd : [0,0,0,0,0,0,0,0];
       document.getElementById("lcd").textContent = lcd.map(glyph).join("");
-      document.getElementById("teclado").textContent = "Cola F0H: " + (s.teclado || []).join(" ");
+      document.getElementById("teclado").textContent = "Cola F0H: " + (s.teclado || []).join(" ") + " · cursor " + (s.lcdCursor == null ? "—" : s.lcdCursor) + (s.lcdNota ? " · " + s.lcdNota : "");
     }
     function fail(err) {
       corriendo = false;

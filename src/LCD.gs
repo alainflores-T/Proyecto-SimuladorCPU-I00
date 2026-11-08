@@ -77,7 +77,7 @@ function lcdReceive(value) {
   var read = ioReadBytes(gate.map.lcd);
   if (!read.ok) return read;
   var cursor = lcdReadCursor();
-  if (cursor >= gate.map.lcd.bytes) return { ok: false, reason: "LCD line is full." };
+  if (cursor >= gate.map.lcd.bytes) cursor = 0;
   var slots = read.bytes.slice();
   slots[cursor] = byte;
   var wrote = ioWriteBytes(gate.map.lcd, slots);
@@ -112,10 +112,35 @@ function lcdReset() {
   return lcdClear();
 }
 
+function lcdAnotar_(texto) {
+  if (typeof PropertiesService === "undefined") return;
+  PropertiesService.getDocumentProperties().setProperty("LCD_ULTIMO", String(texto || ""));
+}
+
+function lcdUltimo_() {
+  if (typeof PropertiesService === "undefined") return "";
+  return PropertiesService.getDocumentProperties().getProperty("LCD_ULTIMO") || "";
+}
+
+function describirPantalla_() {
+  var cursor = lcdReadCursor();
+  var bytes = [];
+  var i;
+  if (typeof POLITICA_ES !== "undefined" && POLITICA_ES && typeof readPhysical === "function") {
+    for (i = 0; i < POLITICA_ES.lcd.bytes; i++) {
+      try { bytes.push(readPhysical(POLITICA_ES.lcd.inicio + i)); }
+      catch (eByte) { bytes.push("?"); }
+    }
+  }
+  return "cursor=" + cursor + " F8=" + bytes.join(",") + " ultimo=" + lcdUltimo_();
+}
+
 function lcdReceiveFromBus(sheet, value) {
   var result = lcdReceive(value);
+  var nota = result.ok ? "OUT escribió " + result.byte + " en la posición " + (result.cursor - 1) : "OUT no escribió: " + result.reason;
+  lcdAnotar_(nota);
   if (!result.ok) registrarLog(sheet, "OUT blocked: " + result.reason);
-  else registrarLog(sheet, "OUT LCD <- " + value + " Ld_LCD=1");
+  else registrarLog(sheet, "OUT LCD <- " + value + " posición " + (result.cursor - 1));
   return result;
 }
 

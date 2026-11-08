@@ -363,6 +363,8 @@ function uiSnapshotDatos_() {
     paginas: uiLeerPaginas_(),
     teclado: teclado && teclado.ok ? teclado.bytes : [],
     lcd: lcd && lcd.ok ? lcd.bytes : [],
+    lcdCursor: (typeof lcdReadCursor === "function") ? lcdReadCursor() : null,
+    lcdNota: (typeof lcdUltimo_ === "function") ? lcdUltimo_() : "",
     politica: (typeof politicaGuardada_ === "function") ? (politicaGuardada_() || "") : "",
     marcosElegibles: (typeof marcosElegiblesReemplazo_ === "function") ? marcosElegiblesReemplazo_() : [],
     marcoReservado: (typeof marcoReservadoES_ === "function") ? marcoReservadoES_() : null,

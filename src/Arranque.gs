@@ -112,6 +112,7 @@ function diagnosticarSimulador() {
     "Pausa Layout!E4: " + (uiPaused() ? "PAUSE" : "no"),
     "Caché L1I " + (cache ? cache.l1i.hits + "/" + cache.l1i.misses : "—") + " L2 " + (cache ? cache.l2.hits + "/" + cache.l2.misses : "—"),
     "Cola " + ((typeof describirCola_ === "function") ? describirCola_() : "no leída"),
+    "Pantalla " + ((typeof describirPantalla_ === "function") ? describirPantalla_() : "no leída"),
     "Notas Swap=" + notaDe("Swap") + " TablaPaginas=" + notaDe("TablaPaginas") + " Caches=" + notaDe("Caches") + " Directory=" + notaDe("Directory")
   ];
   if (!virtual && !cargado) {
