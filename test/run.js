@@ -62,4 +62,17 @@ if (resultado.fallos.length) {
   console.log(resultado.fallos.join("\n"));
   process.exit(1);
 }
+vm.runInContext(fs.readFileSync(path.join(raiz, "test/setup-hoja.js"), "utf8"), contexto, { filename: "test/setup-hoja.js" });
+var setup;
+try {
+  setup = contexto.simProbarSetupHoja();
+} catch (err) {
+  console.error("setup excepción " + (err && err.stack ? err.stack : err));
+  process.exit(1);
+}
+console.log("setup fallos=" + setup.fallos.length);
+if (setup.fallos.length) {
+  console.log(setup.fallos.join("\n"));
+  process.exit(1);
+}
 console.log("ok");
