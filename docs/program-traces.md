@@ -1,10 +1,22 @@
-# Expected traces for the three catalog programs
+# Trazas de los tres programas
 
-These are static results and expected control-flow traces, not spreadsheet measurements. No CPU run, cache counters, page-fault log or dirty write-back was observed.
+## Medido el 2026-11-08
+
+Motor de producción (`stepCPU`, MMU, caché, `IN`/`OUT`, cargador) con `SpreadsheetApp` y `PropertiesService` simulados. Comando: `node tests/run-motor.js`. No es una corrida de la hoja original.
+
+| Programa | Resultado medido |
+| --- | --- |
+| Aritmética | HALT con AX=`0CH`, BX=`04H`, CX=`00H`, DX=`04H`, ZF=1, CF=0, SF=0. L1I tuvo miss y después hit. |
+| Eco | Ocho `IN`/`OUT` con la memoria virtual encendida. LCD = 65,66,67,68,69,70,71,72. La cola no está en la dirección física F0H. |
+| Disperso | HALT con AX=`03H`, BX=`02H`, CX=`03H`, DX=`04H`. Al parar hay 8 páginas presentes. Dirty en VPN 7, 9, 14 y 15. L1D: 8 misses y 0 hits (cada operando cae en otra línea y L1D guarda una sola). L1I: 27 hits, 5 misses, tasa 84.4. L2: 0 hits, 13 misses. El log tiene `PAGE FAULT`. Con FIFO, los dos desalojos del propio programa fueron páginas limpias (0 y 2). El write-back de un marco sucio se midió al pedir páginas de más después del HALT. |
+
+`FETCH_3` no añade eventos de caché si `FETCH_2` ya leyó la instrucción (0 eventos nuevos en la prueba).
+
+## Previsto, no medido en Sheets
+
+Lo que sigue es el análisis estático anterior. No son cifras de la hoja de cálculo.
 
 Page size is 32 bytes. VPN = address >> 5. A first access to an absent page causes a page fault. A later access can fault again if that page was evicted. Cache misses and page faults are different events.
-
-The loader stores numeric machine bytes, while the current CPU fetch/decode path does not yet execute that byte stream correctly. The traces below describe the intended instruction semantics, not a successful loaded-program execution.
 
 ## Program 1 — arithmetic-ax-dx
 
@@ -45,9 +57,7 @@ The source executes MOV CX, 08H, eight iterations of IN/OUT/DEC/JNZ, and HLT. Th
 | 2–33 | IN, OUT, DEC, JNZ, eight iterations | No additional program-data VPN is required | Not measured |
 | 34 | HLT | VPN 0 remains sufficient | Not measured |
 
-The source does not stop on Enter (0DH) or on an empty-input value (00H). When peripheral access is allowed, an empty IN returns 00H without advancing the queue pointers. If the I/O guard rejects access, that is not a successful empty read.
-
-No LCD output was observed. The current personal physical-I/O opt-in is not a protected virtual-memory reservation. This document does not claim that the echo can run safely with paging enabled.
+The source does not stop on Enter (0DH). An empty IN returns 00H and does not move the queue. The 2026-11-08 mock run did produce the eight LCD bytes with virtual memory on. That run is not a measurement on the original spreadsheet.
 
 ## Program 3 — scattered-access
 
