@@ -32,7 +32,9 @@ function simCrearLibroPrueba(opciones) {
       hideSheet: function () { hoja.oculta = true; },
       clear: function () { valores = {}; },
       setFrozenRows: function () {},
-      setColumnWidth: function () {},
+      anchos: {},
+      setColumnWidth: function (col, px) { hoja.anchos[col] = px; },
+      setHiddenGridlines: function (ocultar) { hoja.rejillaOculta = !!ocultar; },
       alturas: {},
       envolturas: {},
       setRowHeight: function (fila, alto) { hoja.alturas[fila] = alto; },
@@ -123,6 +125,9 @@ function simCrearLibroPrueba(opciones) {
           setFontWeight: function () { return rango; },
           setFontSize: function () { return rango; },
           setHorizontalAlignment: function () { return rango; },
+          setVerticalAlignment: function () { return rango; },
+          setFontFamily: function () { return rango; },
+          setBorder: function () { return rango; },
           setNumberFormat: function (fmt) {
             var r;
             var c;
@@ -294,13 +299,17 @@ function simProbarSetupHoja() {
   afirmar(libro.getSheetByName("Programas") === null, "no queda una hoja Programas distinta");
   afirmar(libro.getSheetByName("PROGRAMAS").getRange(1, 1).getMergedRanges().length === 0, "el merge heredado se separó");
   var panel = libro.getSheetByName("PANEL");
+  var mapa = simMapaPanel_();
   afirmar(String(panel.getRange(1, 1).getValue()).indexOf("UNIDAD CENTRAL") === 0, "el título del panel se escribió");
-  afirmar(String(panel.getRange(5, 1).getValue()) === "Registro", "los registros quedan a la izquierda");
-  afirmar(String(panel.getRange(21, 1).getValue()) === "Buses", "los buses están en la hoja principal");
-  afirmar(String(panel.getRange(12, 10).getValue()) === "Memoria RAM", "la RAM queda a la derecha");
-  afirmar(String(panel.getRange(13, 11).getValue()) === "=_ESTADO!A" + SIM_FILA_RAM, "la celda 00h apunta al primer byte");
-  afirmar(String(panel.getRange(28, 26).getValue()) === "=_ESTADO!P" + (SIM_FILA_RAM + 15), "la celda FFh apunta al último byte");
-  afirmar(String(panel.getRange(13, 11).getValue()).indexOf("\"") < 0, "la RAM visible no concatena con comillas");
+  afirmar(String(panel.getRange(mapa.regFila, 2).getValue()) === "Registro", "los registros quedan a la izquierda");
+  afirmar(String(panel.getRange(mapa.busFila, 2).getValue()) === "Buses", "los buses están en la hoja principal");
+  afirmar(String(panel.getRange(mapa.ramEncabezadoFila, mapa.ramEncabezadoCol).getValue()) === "Memoria RAM", "la RAM queda a la derecha de los registros");
+  afirmar(mapa.ramEncabezadoCol > 5, "la RAM no se pinta encima de los registros");
+  afirmar(String(panel.getRange(mapa.ramFila, mapa.ramCol).getValue()) === "=_ESTADO!A" + SIM_FILA_RAM, "la celda 00h apunta al primer byte");
+  afirmar(String(panel.getRange(mapa.ramFila + 15, mapa.ramCol + 15).getValue()) === "=_ESTADO!P" + (SIM_FILA_RAM + 15), "la celda FFh apunta al último byte");
+  afirmar(String(panel.getRange(mapa.ramFila, mapa.ramCol).getValue()).indexOf("\"") < 0, "la RAM visible no concatena con comillas");
+  afirmar(panel.anchos[6] <= 16 && panel.anchos[mapa.ramCol] >= 36 && panel.anchos[mapa.ramCol] <= 44, "el hueco entre CPU y RAM es estrecho y el byte cabe");
+  afirmar(panel.rejillaOculta === true, "la hoja principal oculta la cuadrícula");
   var rota = '" "_ESTADO!';
   var junta = '" "&_ESTADO!';
   function simCuenta_(texto, token) {
@@ -310,25 +319,36 @@ function simProbarSetupHoja() {
     while ((i = s.indexOf(token, i)) >= 0) { n++; i += token.length; }
     return n;
   }
-  var bytesCache = String(panel.getRange(6, 14).getValue());
+  var bytesCache = String(panel.getRange(mapa.cacheBytesFila, mapa.cacheBytesCol).getValue());
   afirmar(bytesCache.indexOf(rota) < 0, "los bytes de caché no dejan el espacio sin &");
   afirmar(simCuenta_(bytesCache, junta) === 7, "la línea L1I une 8 bytes con & a cada lado");
   afirmar(bytesCache.indexOf("=_ESTADO!E" + SIM_FILA_CACHE) === 0, "la línea L1I empieza en la columna E del estado");
-  var palabra = String(panel.getRange(14, 3).getValue());
+  var palabra = String(panel.getRange(mapa.palabraFila, mapa.palabraCol).getValue());
   afirmar(palabra.indexOf('"') < 0 && simCuenta_(palabra, "&_ESTADO!") === 27, "la palabra de 28 bits no usa el separador con espacio");
-  afirmar(String(panel.getRange(31, 10).getValue()).indexOf("VM activa") === 0, "el panel dice que la VM está activa");
-  afirmar(String(panel.getRange(31, 11).getValue()) === "=_ESTADO!A" + (SIM_FILA_PAG + 15), "el indicador lee la presencia de la VPN 15");
-  afirmar(String(panel.getRange(31, 13).getValue()) === "=_ESTADO!B" + (SIM_FILA_PAG + 15), "el indicador lee el marco de la VPN 15");
-  afirmar(panel.envolturas["30,10"] === true && panel.alturas[30] >= 36, "el aviso de marcos cabe en su fila");
-  afirmar(String(panel.getRange(4, 10).getValue()) === "Caché", "la caché está encima de la RAM");
-  afirmar(String(panel.getRange(30, 10).getValue()).indexOf("7") >= 0, "el riesgo de 7 marcos paginables es visible");
-  afirmar(String(panel.getRange(19, 7).getValue()) === "Último fallo", "el fallo de página se marca como histórico");
-  afirmar(String(panel.getRange(6, 3).getValue()).indexOf("=") === 0, "el PC es una fórmula al estado");
-  afirmar(String(panel.getRange(22, 3).getValue()).indexOf("=") === 0, "el valor del bus es una fórmula");
-  afirmar(panel.validaciones["3,4"], "el selector P1 P2 P3 está en el panel");
-  afirmar(panel.casillas["3,1"] && panel.casillas["3,2"] && panel.casillas["3,3"], "Step, Run y Load son casillas");
-  afirmar(libro.getSheetByName("PERIFERICOS").getRange(3, 1).getValue() === "A", "el teclado físico empieza en A");
-  afirmar(String(libro.getSheetByName("PERIFERICOS").getRange(12, 2).getValue()).indexOf("76") > 0, "el LCD lee los glifos del estado");
+  afirmar(String(panel.getRange(mapa.vmActivaFila, mapa.vmNotaCol).getValue()).indexOf("VM activa") === 0, "el panel dice que la VM está activa");
+  afirmar(String(panel.getRange(mapa.vmActivaFila, mapa.vmNotaCol + 1).getValue()) === "=_ESTADO!A" + (SIM_FILA_PAG + 15), "el indicador lee la presencia de la VPN 15");
+  afirmar(String(panel.getRange(mapa.vmActivaFila, mapa.vmNotaCol + 3).getValue()) === "=_ESTADO!B" + (SIM_FILA_PAG + 15), "el indicador lee el marco de la VPN 15");
+  afirmar(panel.envolturas[mapa.vmNotaFila + "," + mapa.vmNotaCol] === true && panel.alturas[mapa.vmNotaFila] >= 36, "el aviso de marcos cabe en su fila");
+  afirmar(String(panel.getRange(mapa.cacheFila, mapa.ramEncabezadoCol).getValue()).indexOf("Caché") === 0, "la caché está en la hoja principal");
+  afirmar(String(panel.getRange(mapa.cacheBytesFila + 1, mapa.cacheBytesCol + 8).getValue()).indexOf("l1d") >= 0 || String(panel.getRange(mapa.cacheBytesFila + 1, 20).getValue()).indexOf("=") === 0, "L1D tiene miss");
+  afirmar(String(panel.getRange(mapa.cacheBytesFila, 21).getValue()).indexOf("%") >= 0, "la tasa de L1I lleva porcentaje");
+  afirmar(String(panel.getRange(mapa.vmNotaFila, mapa.vmNotaCol).getValue()).indexOf("7") >= 0, "el riesgo de 7 marcos paginables es visible");
+  afirmar(String(panel.getRange(mapa.falloFila, mapa.falloCol).getValue()) === "Último fallo", "el fallo de página queda dentro de la ALU");
+  afirmar(mapa.falloCol < mapa.ramEncabezadoCol && mapa.falloFila >= mapa.aluFila && mapa.falloFila < mapa.aluFila + 6, "las banderas no flotan fuera de la ALU");
+  afirmar(String(panel.getRange(mapa.vmDatosFila, mapa.ramCol).getValue()) === "=_ESTADO!A" + SIM_FILA_SWAP, "la mitad +00 de la VM lee el swap");
+  afirmar(String(panel.getRange(mapa.vmAltaFila, mapa.ramCol).getValue()) === "=_ESTADO!Q" + SIM_FILA_SWAP, "la mitad +10 de la VM lee la otra mitad");
+  afirmar(String(panel.getRange(mapa.pagFila, mapa.vmNotaCol).getValue()) === "VPN", "la tabla de páginas está bajo la VM");
+  afirmar(String(panel.getRange(mapa.pcFila, mapa.pcCol).getValue()).indexOf("=") === 0, "el PC es una fórmula al estado");
+  afirmar(String(panel.getRange(mapa.busValorFila, mapa.busValorCol).getValue()).indexOf("=") === 0, "el valor del bus es una fórmula");
+  afirmar(String(panel.getRange(mapa.busValorFila, 5).getValue()).indexOf("High-Z") >= 0, "el bus apagado dice High-Z");
+  afirmar(panel.validaciones[mapa.prog[0] + "," + mapa.prog[1]], "el selector P1 P2 P3 está en el panel");
+  afirmar(panel.casillas[mapa.step[0] + "," + mapa.step[1]] && panel.casillas[mapa.run[0] + "," + mapa.run[1]] && panel.casillas[mapa.load[0] + "," + mapa.load[1]], "Step, Run y Load son casillas");
+  var perifericos = libro.getSheetByName("PERIFERICOS");
+  afirmar(perifericos.getRange(3, 1).getValue() === "1", "la fila numérica empieza en 1");
+  afirmar(perifericos.getRange(6, 3).getValue() === "Q" && perifericos.getRange(9, 3).getValue() === "A" && perifericos.getRange(12, 5).getValue() === "Z", "el teclado es QWERTY");
+  afirmar(perifericos.getRange(15, 5).getValue() === "Espacio" && perifericos.getRange(15, 17).getValue() === "Borrar", "hay espacio y borrar");
+  afirmar(String(perifericos.getRange(22, 1).getValue()).indexOf("76") > 0, "el LCD lee los glifos del estado");
+  afirmar(String(perifericos.getRange(19, 1).getValue()) === "=_ESTADO!A" + (SIM_FILA_RAM + 15), "la FIFO lee F0");
   afirmar(String(libro.getSheetByName("TRACE").getRange(201, 1).getValue()).indexOf(String(SIM_FILA_TRAZA + 199)) > 0, "TRACE muestra las 200 filas");
   afirmar(libro.getSheetByName("CPU").oculta === true, "la pestaña CPU antigua se oculta y no se borra");
   afirmar(libro.getSheetByName("Hoja 1").oculta !== true, "las pestañas heredadas siguen visibles");
@@ -337,34 +357,39 @@ function simProbarSetupHoja() {
 
   var filaAx = simFilaEscalar("ax");
   libro.getSheetByName("_ESTADO").getRange(filaAx, 2).setValue(42);
-  libro.getSheetByName("PANEL").getRange(3, 4).setValue("P2");
-  libro.getSheetByName("PANEL").getRange(3, 5).setValue(800);
+  libro.getSheetByName("PANEL").getRange(mapa.prog[0], mapa.prog[1]).setValue("P2");
+  libro.getSheetByName("PANEL").getRange(mapa.delay[0], mapa.delay[1]).setValue(800);
   var segundo = simPrepararEstaCopia();
   afirmar(String(segundo).indexOf("conservó") >= 0, "el reintento avisa que conservó el estado");
   afirmar(libro.getSheetByName("_ESTADO").getRange(filaAx, 2).getValue() === 42, "el reintento no borra un valor ya guardado");
   afirmar(libro.getSheetByName("PROGRAMAS").getRange(5, 2).getValue() === "MOV AX, 01H", "el editor de programas sobrevive al reintento");
   afirmar(libro.getSheetByName("Hoja 1") !== null, "las pestañas ajenas siguen en el libro");
-  afirmar(libro.getSheetByName("PANEL").getRange(3, 4).getValue() === "P2", "el selector de programa sobrevive al reintento");
-  afirmar(libro.getSheetByName("PANEL").getRange(3, 5).getValue() === 800, "la demora escrita sobrevive al reintento");
+  afirmar(libro.getSheetByName("PANEL").getRange(mapa.prog[0], mapa.prog[1]).getValue() === "P2", "el selector de programa sobrevive al reintento");
+  afirmar(libro.getSheetByName("PANEL").getRange(mapa.delay[0], mapa.delay[1]).getValue() === 800, "la demora escrita sobrevive al reintento");
   var posAx = simPosA1_(simCeldaVista("axBin"));
   afirmar(libro.getSheetByName("_ESTADO").getRange(posAx.fila, posAx.col).getValue() === "00101010", "el binario de AX conserva los ceros");
 
-  panel.getRange(3, 4).setValue("0000000H");
+  panel.getRange(mapa.prog[0], mapa.prog[1]).setValue("0000000H");
   panel.getRange(19, 3).insertCheckboxes();
   panel.getRange(20, 3).setDataValidation({ tipo: "vieja" });
   simPrepararEstaCopia();
-  afirmar(panel.getRange(3, 4).getValue() === "P1", "0000000H no se acepta como programa");
+  afirmar(panel.getRange(mapa.prog[0], mapa.prog[1]).getValue() === "P1", "0000000H no se acepta como programa");
   afirmar(!panel.casillas["19,3"], "la casilla vieja C19 se quita");
   afirmar(!panel.validaciones["20,3"], "la validación vieja fuera de los controles se quita");
-  afirmar(!!panel.validaciones["3,4"], "la lista del selector vuelve a quedar en el panel");
+  afirmar(!!panel.validaciones[mapa.prog[0] + "," + mapa.prog[1]], "la lista del selector vuelve a quedar en el panel");
   afirmar(libro.getSheetByName("_ESTADO").getRange(filaAx, 2).getValue() === 42, "limpiar la presentación no borra AX");
   afirmar(libro.getSheetByName("PROGRAMAS").getRange(5, 2).getValue() === "MOV AX, 01H", "limpiar la presentación no borra el editor");
 
-  panel.getRange(3, 4).setValue("P2");
+  panel.getRange(mapa.prog[0], mapa.prog[1]).setValue("P2");
   var carga = simCargarDesdePanel();
   afirmar(String(carga).indexOf("P2") >= 0, "el selector carga el catálogo P2");
   afirmar(libro.getSheetByName("PROGRAMAS").getRange(5, 2).getValue() === "MOV AX, 01H", "cargar el selector no pisa el editor");
   afirmar(String(libro.getSheetByName("_ESTADO").getRange(simFilaEscalar("programa"), 2).getValue()) === "P2", "el estado queda con P2");
+  libro.getSheetByName("_ESTADO").getRange(filaAx, 2).setValue(7);
+  panel.getRange(mapa.prog[0], mapa.prog[1]).setValue("P3");
+  simPrepararEstaCopia();
+  afirmar(panel.getRange(mapa.prog[0], mapa.prog[1]).getValue() === "P2", "el selector muestra el programa del estado y no el valor viejo");
+  afirmar(libro.getSheetByName("_ESTADO").getRange(filaAx, 2).getValue() === 7, "repintar la hoja no reinicia la CPU");
 
   var choque = false;
   try { libro.insertSheet("programas"); }

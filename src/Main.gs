@@ -303,31 +303,174 @@ function simUnir_(hoja, fila, col, nFilas, nCols) {
   return rango;
 }
 
-function simPintarPanel_(ss) {
+function simMapaPanel_() {
+  var vmNota = 35;
+  var vmDatos = 38;
+  var vmAlta = 55;
+  var pagFila = 72;
+  var logFila = 90;
+  return {
+    ctrlFila: 3,
+    step: [3, 2],
+    run: [3, 3],
+    load: [3, 4],
+    prog: [3, 5],
+    delay: [3, 7],
+    pause: [3, 9],
+    reset: [3, 11],
+    regFila: 5,
+    pcFila: 6,
+    pcCol: 3,
+    palabraFila: 14,
+    palabraCol: 3,
+    aluFila: 16,
+    falloFila: 21,
+    falloCol: 4,
+    busFila: 24,
+    busValorFila: 26,
+    busValorCol: 4,
+    ramEncabezadoFila: 5,
+    ramEncabezadoCol: 7,
+    ramFila: 6,
+    ramCol: 8,
+    cacheFila: 24,
+    cacheBytesFila: 26,
+    cacheBytesCol: 11,
+    vmNotaFila: vmNota,
+    vmNotaCol: 7,
+    vmActivaFila: 36,
+    vmDatosFila: vmDatos,
+    vmAltaFila: vmAlta,
+    pagFila: pagFila,
+    logFila: logFila,
+    logCol: 7,
+    texto: [104, 8],
+    va: [104, 10],
+    valor: [104, 12],
+    pruebas: [105, 2]
+  };
+}
+
+function simLeerSelector_(ss) {
+  var mapa = simMapaPanel_();
   var previa = ss.getSheetByName("PANEL");
   var prog = "P1";
   var delay = 1000;
   if (previa) {
-    prog = simIdPrograma_(previa.getRange(3, 4).getValue()) || simIdPrograma_(previa.getRange(9, 2).getValue()) || "P1";
-    var d = Number(previa.getRange(3, 5).getValue());
+    prog = simIdPrograma_(previa.getRange(mapa.prog[0], mapa.prog[1]).getValue()) || simIdPrograma_(previa.getRange(3, 4).getValue()) || "P1";
+    var d = Number(previa.getRange(mapa.delay[0], mapa.delay[1]).getValue());
+    if (!(d >= 50 && d <= 5000)) d = Number(previa.getRange(3, 5).getValue());
     if (d >= 50 && d <= 5000) delay = d;
   }
+  var estado = ss.getSheetByName("_ESTADO");
+  if (estado && String(estado.getRange(1, 1).getValue()) === SIM_MAGIA) {
+    var cargado = simIdPrograma_(estado.getRange(simFilaEscalar("programa"), 2).getValue());
+    if (cargado) prog = cargado;
+  }
+  return { prog: prog, delay: delay, mapa: mapa };
+}
+
+function simTasaCelda_(nombre) {
+  var ref = simRefVista_(nombre).slice(1);
+  return "=IF(" + ref + "=\"—\",\"—\"," + ref + "&\"%\")";
+}
+
+function simEstadoBus_(emisor) {
+  return "=IF(" + simRefEsc_(emisor).slice(1) + "=\"\",\"High-Z\",\"EN\")";
+}
+
+function simEstadoSenal_(nombre) {
+  return "=IF(" + simRefEsc_(nombre).slice(1) + "=1,\"EN\",\"inactivo\")";
+}
+
+function simFondo_(rango, fondo, color, tam) {
+  if (!rango) return rango;
+  if (fondo && rango.setBackground) rango.setBackground(fondo);
+  if (color && rango.setFontColor) rango.setFontColor(color);
+  if (tam && rango.setFontSize) rango.setFontSize(tam);
+  if (rango.setHorizontalAlignment) rango.setHorizontalAlignment("center");
+  if (rango.setVerticalAlignment) rango.setVerticalAlignment("middle");
+  return rango;
+}
+
+function simBorde_(rango, color) {
+  if (!rango || !rango.setBorder) return;
+  try {
+    var estilo = SpreadsheetApp.BorderStyle && SpreadsheetApp.BorderStyle.SOLID;
+    if (estilo) rango.setBorder(true, true, true, true, true, true, color || "#90A4AE", estilo);
+  } catch (err) {}
+}
+
+function simPintarPanel_(ss) {
+  var elegido = simLeerSelector_(ss);
+  var mapa = elegido.mapa;
+  var prog = elegido.prog;
+  var delay = elegido.delay;
   var hoja = simHoja_(ss, "PANEL");
   simLimpiarLienzo_(hoja);
-  simPegar_(hoja, 1, 1, [["UNIDAD CENTRAL DE PROCESO - CPU", "", "", "", "", "", "", ""]]);
-  simPegar_(hoja, 2, 1, [[
-    "STEP", "RUN", "LOAD", "Programa", "DELAY", "PAUSE", "RESET", "ISA actual: LD, no LOAD"
-  ]]);
-  simPegar_(hoja, 3, 1, [["", "", "", prog, delay, "", "", ""]]);
-  var casillas = [[3, 1], [3, 2], [3, 3], [3, 6], [3, 7]];
-  var i;
-  for (i = 0; i < casillas.length; i++) {
-    hoja.getRange(casillas[i][0], casillas[i][1]).insertCheckboxes();
-    hoja.getRange(casillas[i][0], casillas[i][1]).setBackground("#C8E6C9");
+  if (hoja.setHiddenGridlines) hoja.setHiddenGridlines(true);
+  var anchoCol = { 1: 12, 2: 104, 3: 68, 4: 74, 5: 150, 6: 10, 7: 48 };
+  var col;
+  for (col = 8; col <= 23; col++) anchoCol[col] = 40;
+  for (col = 1; col <= 23; col++) hoja.setColumnWidth(col, anchoCol[col]);
+  if (hoja.hideColumns) {
+    try { hoja.hideColumns(24, 20); } catch (errOcultar) {}
   }
+  if (hoja.setRowHeight) {
+    hoja.setRowHeight(1, 34);
+    hoja.setRowHeight(2, 20);
+    hoja.setRowHeight(3, 28);
+    hoja.setRowHeight(4, 8);
+    for (col = 5; col <= 105; col++) hoja.setRowHeight(col, 22);
+    hoja.setRowHeight(mapa.vmNotaFila, 40);
+  }
+  simFondo_(hoja.getRange(1, 1, 105, 23), "#0B1016", "#E7EEF6", 11);
+  hoja.getRange(1, 1).setValue("UNIDAD CENTRAL DE PROCESO - CPU");
+  simUnir_(hoja, 1, 1, 1, 23);
+  simFondo_(hoja.getRange(1, 1), "#1565C0", "#FFFFFF", 16);
+  hoja.getRange(1, 1).setFontWeight("bold");
+
+  var controles = [
+    [mapa.step[1], "STEP", "#1565C0", "#FFFFFF", 1],
+    [mapa.run[1], "RUN", "#2E7D32", "#FFFFFF", 1],
+    [mapa.load[1], "LOAD", "#6A1B9A", "#FFFFFF", 1],
+    [mapa.pause[1], "PAUSE", "#F9A825", "#1A1A1A", 2],
+    [mapa.reset[1], "RESET", "#C62828", "#FFFFFF", 2]
+  ];
+  var i;
+  for (i = 0; i < controles.length; i++) {
+    var celdaCtrl = hoja.getRange(2, controles[i][0]);
+    celdaCtrl.setValue(controles[i][1]);
+    if (controles[i][4] > 1) simUnir_(hoja, 2, controles[i][0], 1, controles[i][4]);
+    simFondo_(celdaCtrl, controles[i][2], controles[i][3], 11);
+    celdaCtrl.setFontWeight("bold");
+    var casilla = hoja.getRange(3, controles[i][0]);
+    casilla.insertCheckboxes();
+    simFondo_(casilla, controles[i][2], controles[i][3], 11);
+  }
+  hoja.getRange(2, 5).setValue("Cargar");
+  hoja.getRange(3, 5).setValue(prog);
   var lista = SpreadsheetApp.newDataValidation().requireValueInList(["P1", "P2", "P3"], true).setAllowInvalid(false).build();
-  hoja.getRange(3, 4).setDataValidation(lista).setBackground("#FFF9C4");
-  hoja.getRange(3, 5).setBackground("#FFF9C4");
+  hoja.getRange(3, 5).setDataValidation(lista);
+  simFondo_(hoja.getRange(2, 5, 2, 1), "#FFF9C4", "#1A1A1A", 12);
+  hoja.getRange(2, 7).setValue("DELAY");
+  simUnir_(hoja, 2, 7, 1, 2);
+  hoja.getRange(3, 7).setValue(delay);
+  simUnir_(hoja, 3, 7, 1, 2);
+  simFondo_(hoja.getRange(2, 7, 2, 2), "#FFF9C4", "#1A1A1A", 12);
+  hoja.getRange(2, 13).setValue("Fase");
+  simUnir_(hoja, 2, 13, 1, 2);
+  hoja.getRange(3, 13).setValue(simRefEsc_("fase"));
+  simUnir_(hoja, 3, 13, 1, 2);
+  hoja.getRange(2, 15).setValue("Evento");
+  simUnir_(hoja, 2, 15, 1, 5);
+  hoja.getRange(3, 15).setValue(simRefEsc_("evento"));
+  simUnir_(hoja, 3, 15, 1, 5);
+  hoja.getRange(2, 20).setValue("En CPU");
+  hoja.getRange(3, 20).setValue(simRefEsc_("programa"));
+  simUnir_(hoja, 2, 20, 1, 4);
+  simUnir_(hoja, 3, 20, 1, 4);
+  simFondo_(hoja.getRange(2, 13, 2, 11), "#10243F", "#E3F2FD", 11);
 
   var regs = [
     ["Registro", "Decimal", "Hex", "Binario"],
@@ -340,181 +483,274 @@ function simPintarPanel_(ss) {
     ["MDR", simRefEsc_("mdr"), simRefVista_("mdrHex"), simRefVista_("mdrBin")],
     ["IR", simRefEsc_("ir"), simRefVista_("irHex"), simRefVista_("irBin")]
   ];
-  simPegar_(hoja, 5, 1, regs);
-  simPegar_(hoja, 14, 1, [[
-    "Palabra",
-    simRefEsc_("palabra"),
-    simRefUnidos_(SIM_FILA_BITS, 1, SIM_SENALES.length, false),
-    "28 bits"
-  ]]);
-  hoja.getRange(6, 4, 8, 1).setNumberFormat("@");
-  hoja.getRange(14, 3).setNumberFormat("@");
+  simPegar_(hoja, mapa.regFila, 2, regs);
+  hoja.getRange(mapa.palabraFila, 2).setValue("Control 28 bits");
+  hoja.getRange(mapa.palabraFila, mapa.palabraCol).setNumberFormat("@");
+  hoja.getRange(mapa.palabraFila, mapa.palabraCol).setValue(simRefUnidos_(SIM_FILA_BITS, 1, SIM_SENALES.length, false));
+  simUnir_(hoja, mapa.palabraFila, mapa.palabraCol, 1, 3);
+  hoja.getRange(mapa.pcFila, 5, 8, 1).setNumberFormat("@");
+  if (hoja.getRange(mapa.pcFila, 5).setFontFamily) hoja.getRange(mapa.pcFila, 5, 8, 1).setFontFamily("Roboto Mono");
+  simFondo_(hoja.getRange(mapa.regFila, 2, 1, 4), "#1565C0", "#FFFFFF", 11);
+  simFondo_(hoja.getRange(mapa.pcFila, 2, 8, 4), "#1A2332", "#E3F2FD", 12);
+  simFondo_(hoja.getRange(mapa.palabraFila, 2, 1, 4), "#0D2137", "#B3E5FC", 10);
+  simBorde_(hoja.getRange(mapa.regFila, 2, 10, 4), "#1565C0");
 
-  simPegar_(hoja, 16, 1, [
+  simPegar_(hoja, mapa.aluFila, 2, [
     ["UNIDAD ARITMETICO-LOGICA", "", "", ""],
     ["Operando #1", simRefEsc_("aluA"), "Operando #2", simRefEsc_("aluB")],
-    ["Resultado", simRefEsc_("aluR"), "Op", simRefEsc_("aluOp")]
+    ["", "Op", simRefEsc_("aluOp"), ""],
+    ["", "Resultado", simRefEsc_("aluR"), ""],
+    ["ZF", simRefEsc_("zf"), "CF", simRefEsc_("cf")],
+    ["SF", simRefEsc_("sf"), "Último fallo", simRefEsc_("banner")]
   ]);
-  simPegar_(hoja, 16, 7, [
-    ["ZERO FLAG", simRefEsc_("zf")],
-    ["CARRY FLAG", simRefEsc_("cf")],
-    ["SIGN FLAG", simRefEsc_("sf")],
-    ["Último fallo", simRefEsc_("banner")]
-  ]);
-  hoja.getRange(19, 8).setBackground("#FFF8E1");
+  simUnir_(hoja, mapa.aluFila, 2, 1, 4);
+  simFondo_(hoja.getRange(mapa.aluFila, 2, 6, 4), "#1A2332", "#E7EEF6", 11);
+  simFondo_(hoja.getRange(mapa.aluFila, 2), "#37474F", "#FFFFFF", 11);
+  simFondo_(hoja.getRange(mapa.aluFila + 1, 3), "#A5D6A7", "#1B5E20", 12);
+  simFondo_(hoja.getRange(mapa.aluFila + 1, 5), "#90CAF9", "#0D47A1", 12);
+  simFondo_(hoja.getRange(mapa.aluFila + 2, 2), "#1A2332", "#90A4AE", 11);
+  simFondo_(hoja.getRange(mapa.aluFila + 2, 5), "#1A2332", "#90A4AE", 11);
+  simFondo_(hoja.getRange(mapa.aluFila + 2, 3, 1, 2), "#78909C", "#FFFFFF", 12);
+  simFondo_(hoja.getRange(mapa.aluFila + 3, 2), "#1A2332", "#E7EEF6", 11);
+  simFondo_(hoja.getRange(mapa.aluFila + 3, 5), "#1A2332", "#E7EEF6", 11);
+  simFondo_(hoja.getRange(mapa.aluFila + 3, 3, 1, 2), "#6A1B9A", "#F3E5F5", 12);
+  simFondo_(hoja.getRange(mapa.falloFila - 1, 2, 2, 4), "#10243F", "#E3F2FD", 11);
+  hoja.getRange(mapa.falloFila, mapa.falloCol + 1).setBackground("#FFF8E1").setFontColor("#1A1A1A");
+  simBorde_(hoja.getRange(mapa.aluFila, 2, 6, 4), "#CE93D8");
 
   var buses = [
-    ["Buses", "Emisor", "Valor", "Lectura"],
-    ["Dirección interna", simRefEsc_("emDirI"), simRefVista_("dirI"), "EN o High-Z (ZZ)"],
-    ["Datos internos", simRefEsc_("emDatI"), simRefVista_("datI"), "EN o High-Z (ZZ)"],
-    ["Dirección memoria", simRefEsc_("emDirE"), simRefVista_("dirE"), "física"],
-    ["Datos memoria", simRefEsc_("emDatE"), simRefVista_("datE"), "RAM o MDR"],
-    ["Read", simRefEsc_("rd"), "", "1 activo, 0 inactivo"],
-    ["Write", simRefEsc_("wr"), "", "1 activo, 0 inactivo"],
-    ["Clock", simRefEsc_("ck"), "", "1 pulso"],
-    ["IO", simRefEsc_("io"), "", "1 si IN u OUT"]
+    ["Buses", "", "", ""],
+    ["Nombre", "Emisor", "Valor", "Estado"],
+    ["Dir. interna → MAR", simRefEsc_("emDirI"), simRefVista_("dirI"), simEstadoBus_("emDirI")],
+    ["Datos internos → ALU", simRefEsc_("emDatI"), simRefVista_("datI"), simEstadoBus_("emDatI")],
+    ["Dir. memoria → RAM", simRefEsc_("emDirE"), simRefVista_("dirE"), simEstadoBus_("emDirE")],
+    ["Datos → MDR", simRefEsc_("emDatE"), simRefVista_("datE"), simEstadoBus_("emDatE")],
+    ["Read", simRefEsc_("rd"), simRefEsc_("rd"), simEstadoSenal_("rd")],
+    ["Write", simRefEsc_("wr"), simRefEsc_("wr"), simEstadoSenal_("wr")],
+    ["Clock", simRefEsc_("ck"), simRefEsc_("ck"), simEstadoSenal_("ck")],
+    ["IO", simRefEsc_("io"), simRefEsc_("io"), simEstadoSenal_("io")]
   ];
-  simPegar_(hoja, 21, 1, buses);
-
-  simPegar_(hoja, 4, 10, [[
-    "Caché", "L1I", simRefVista_("l1iTasa"), "L1D", simRefVista_("l1dTasa"), "L2", simRefVista_("l2Tasa"), "Mant.", simRefEsc_("mant"),
-    "", "", "", "", "", "", ""
-  ]]);
-  var cache = [["Línea", "V", "Tag", "Base", "Bytes"]];
-  var f;
-  for (f = 0; f < 6; f++) {
-    var base = SIM_FILA_CACHE + f;
-    cache.push([
-      "=_ESTADO!A" + base,
-      "=_ESTADO!B" + base,
-      "=_ESTADO!C" + base,
-      "=_ESTADO!D" + base,
-      simRefUnidos_(base, 5, 8, true)
+  simPegar_(hoja, mapa.busFila, 2, buses);
+  simUnir_(hoja, mapa.busFila, 2, 1, 4);
+  simFondo_(hoja.getRange(mapa.busFila, 2, 1, 4), "#263238", "#FFFFFF", 11);
+  simFondo_(hoja.getRange(mapa.busFila + 1, 2, 1, 4), "#37474F", "#FFFFFF", 10);
+  simFondo_(hoja.getRange(mapa.busValorFila, 2, 8, 4), "#1A2332", "#E3F2FD", 11);
+  simBorde_(hoja.getRange(mapa.busFila, 2, 10, 4), "#90A4AE");
+  if (SpreadsheetApp.newConditionalFormatRule) {
+    var zonaBus = hoja.getRange(mapa.busValorFila, 5, 8, 1);
+    hoja.setConditionalFormatRules([
+      SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo("EN").setBackground("#1B5E20").setFontColor("#E8F5E9").setRanges([zonaBus]).build(),
+      SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo("High-Z").setBackground("#263238").setFontColor("#90A4AE").setRanges([zonaBus]).build(),
+      SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo("inactivo").setBackground("#263238").setFontColor("#90A4AE").setRanges([zonaBus]).build()
     ]);
   }
-  simPegar_(hoja, 5, 10, cache);
 
   var ramHead = ["Memoria RAM"];
   var h;
+  var f;
+  var c;
   for (h = 0; h < 16; h++) ramHead.push(h.toString(16).toUpperCase());
-  simPegar_(hoja, 12, 10, [ramHead]);
+  simPegar_(hoja, mapa.ramEncabezadoFila, mapa.ramEncabezadoCol, [ramHead]);
   var ram = [];
   for (f = 0; f < 16; f++) {
     var fila = [simHex(f * 16, 2) + "h"];
-    var c;
     for (c = 0; c < 16; c++) fila.push("=_ESTADO!" + simColumna_(c + 1) + (SIM_FILA_RAM + f));
     ram.push(fila);
   }
-  simPegar_(hoja, 13, 10, ram);
+  simPegar_(hoja, mapa.ramFila, mapa.ramEncabezadoCol, ram);
+  simFondo_(hoja.getRange(mapa.ramEncabezadoFila, mapa.ramEncabezadoCol, 1, 17), "#0D47A1", "#FFFFFF", 11);
+  simFondo_(hoja.getRange(mapa.ramFila, mapa.ramCol, 16, 16), "#1565C0", "#FFFFFF", 11);
+  simFondo_(hoja.getRange(mapa.ramFila, mapa.ramEncabezadoCol, 16, 1), "#0D2137", "#90CAF9", 10);
+  simBorde_(hoja.getRange(mapa.ramEncabezadoFila, mapa.ramEncabezadoCol, 17, 17), "#1565C0");
 
-  simPegar_(hoja, 30, 10, [[
-    "Memoria virtual 512 B. Marcos 0-6 paginables. El marco 7 es E/S fija. No se afirma la nota plena de 8 marcos.",
-    "", "", "", "", "", "", ""
-  ]]);
-  hoja.getRange(30, 10).setWrap(true);
-  simPegar_(hoja, 31, 10, [[
+  hoja.getRange(mapa.cacheFila, mapa.ramEncabezadoCol).setValue("Caché  L1I 8 B   L1D 8 B   L2 4 x 8 B");
+  simUnir_(hoja, mapa.cacheFila, mapa.ramEncabezadoCol, 1, 15);
+  simFondo_(hoja.getRange(mapa.cacheFila, mapa.ramEncabezadoCol), "#4A148C", "#FFFFFF", 11);
+  var cacheCab = ["Línea", "V", "Tag", "Base", "Bytes", "", "", "", "", "", "", "", "HIT", "MISS", "RATE"];
+  simPegar_(hoja, mapa.cacheFila + 1, mapa.ramEncabezadoCol, [cacheCab]);
+  var cache = [];
+  var tasas = [
+    [simRefEsc_("l1iH"), simRefEsc_("l1iM"), simTasaCelda_("l1iTasa")],
+    [simRefVista_("l1dHits"), simRefVista_("l1dMiss"), simTasaCelda_("l1dTasa")],
+    [simRefEsc_("l2H"), simRefEsc_("l2M"), simTasaCelda_("l2Tasa")],
+    ["", "", ""],
+    ["", "", ""],
+    ["", "", ""]
+  ];
+  for (f = 0; f < 6; f++) {
+    var baseCache = SIM_FILA_CACHE + f;
+    var lineaCache = [
+      "=_ESTADO!A" + baseCache,
+      "=_ESTADO!B" + baseCache,
+      "=_ESTADO!C" + baseCache,
+      "=_ESTADO!D" + baseCache,
+      simRefUnidos_(baseCache, 5, 8, true),
+      "", "", "", "", "", "", ""
+    ];
+    lineaCache.push(tasas[f][0], tasas[f][1], tasas[f][2]);
+    cache.push(lineaCache);
+  }
+  simPegar_(hoja, mapa.cacheBytesFila, mapa.ramEncabezadoCol, cache);
+  for (f = 0; f < 7; f++) simUnir_(hoja, mapa.cacheFila + 1 + f, mapa.cacheBytesCol, 1, 8);
+  simFondo_(hoja.getRange(mapa.cacheFila + 1, mapa.ramEncabezadoCol, 1, 15), "#6A1B9A", "#FFFFFF", 10);
+  simFondo_(hoja.getRange(mapa.cacheBytesFila, mapa.ramEncabezadoCol, 6, 15), "#2A1B3D", "#F3E5F5", 11);
+  simBorde_(hoja.getRange(mapa.cacheFila, mapa.ramEncabezadoCol, 8, 15), "#CE93D8");
+
+  var notaVm = "Memoria virtual 512 B. Dos mitades de 16 x 16. Marcos 0-6 paginables. El marco 7 es E/S fija.";
+  var notaFila = [];
+  for (c = 0; c < 17; c++) notaFila.push(c === 0 ? notaVm : "");
+  simPegar_(hoja, mapa.vmNotaFila, mapa.vmNotaCol, [notaFila]);
+  simUnir_(hoja, mapa.vmNotaFila, mapa.vmNotaCol, 1, 17);
+  hoja.getRange(mapa.vmNotaFila, mapa.vmNotaCol).setWrap(true);
+  simFondo_(hoja.getRange(mapa.vmNotaFila, mapa.vmNotaCol), "#E65100", "#FFFFFF", 11);
+  simPegar_(hoja, mapa.vmActivaFila, mapa.vmNotaCol, [[
     "VM activa, VPN 15",
     "=_ESTADO!" + simColumna_(1) + (SIM_FILA_PAG + 15),
     "marco",
-    "=_ESTADO!" + simColumna_(2) + (SIM_FILA_PAG + 15),
-    "", "", "", ""
+    "=_ESTADO!" + simColumna_(2) + (SIM_FILA_PAG + 15)
   ]]);
+  simFondo_(hoja.getRange(mapa.vmActivaFila, mapa.vmNotaCol, 1, 4), "#EF6C00", "#FFFFFF", 11);
+
+  function simMitadVm_(fila, desplazamiento, titulo) {
+    var cab = [titulo];
+    var n;
+    for (n = 0; n < 16; n++) cab.push((desplazamiento + n).toString(16).toUpperCase());
+    simPegar_(hoja, fila, mapa.vmNotaCol, [cab]);
+    var cuerpo = [];
+    var r;
+    for (r = 0; r < 16; r++) {
+      var vr = [simHex(r * 32 + desplazamiento, 2)];
+      for (n = 0; n < 16; n++) vr.push("=_ESTADO!" + simColumna_(desplazamiento + n + 1) + (SIM_FILA_SWAP + r));
+      cuerpo.push(vr);
+    }
+    simPegar_(hoja, fila + 1, mapa.vmNotaCol, cuerpo);
+    simFondo_(hoja.getRange(fila, mapa.vmNotaCol, 1, 17), "#0D47A1", "#FFFFFF", 10);
+    simFondo_(hoja.getRange(fila + 1, mapa.ramCol, 16, 16), "#0D2137", "#D6E8FF", 10);
+    simFondo_(hoja.getRange(fila + 1, mapa.vmNotaCol, 16, 1), "#102A43", "#90CAF9", 10);
+    simBorde_(hoja.getRange(fila, mapa.vmNotaCol, 17, 17), "#1565C0");
+  }
+  simMitadVm_(mapa.vmDatosFila - 1, 0, "+00");
+  simMitadVm_(mapa.vmAltaFila - 1, 16, "+10");
+
   var pag = [["VPN", "P", "PFN", "Dirty", "Ref", "Orden", "Uso", "Fija"]];
   for (f = 0; f < 16; f++) {
     var fp = [String(f)];
     for (c = 0; c < 7; c++) fp.push("=_ESTADO!" + simColumna_(c + 1) + (SIM_FILA_PAG + f));
     pag.push(fp);
   }
-  simPegar_(hoja, 32, 10, pag);
+  simPegar_(hoja, mapa.pagFila, mapa.vmNotaCol, pag);
+  simFondo_(hoja.getRange(mapa.pagFila, mapa.vmNotaCol, 1, 8), "#EF6C00", "#FFFFFF", 11);
+  simFondo_(hoja.getRange(mapa.pagFila + 1, mapa.vmNotaCol, 16, 8), "#3E2723", "#FFE0B2", 11);
+  simBorde_(hoja.getRange(mapa.pagFila, mapa.vmNotaCol, 17, 8), "#EF6C00");
 
-  var log = [["Paso", "Fase", "Bus", "Emisor", "Detalle"]];
+  var log = [["Paso", "Fase", "Bus", "Emisor", "Receptor"]];
   for (f = 0; f < 12; f++) {
     var fl = [];
     for (c = 0; c < 5; c++) fl.push("=_ESTADO!" + simColumna_(c + 1) + (SIM_FILA_LOG + f));
     log.push(fl);
   }
-  simPegar_(hoja, 50, 10, log);
-  var vm = [];
-  var mitad;
-  for (f = 0; f < 16; f++) {
-    var baja = ["VPN" + f + " +00"];
-    var alta = ["VPN" + f + " +10"];
-    for (c = 0; c < 16; c++) baja.push("=_ESTADO!" + simColumna_(c + 1) + (SIM_FILA_SWAP + f));
-    for (c = 0; c < 16; c++) alta.push("=_ESTADO!" + simColumna_(c + 17) + (SIM_FILA_SWAP + f));
-    vm.push(baja);
-    vm.push(alta);
-  }
-  simPegar_(hoja, 64, 10, vm);
-  hoja.getRange(64, 10, 32, 17).setBackground("#10243f").setFontColor("#d6e8ff").setFontSize(9);
+  simPegar_(hoja, mapa.logFila, mapa.logCol, log);
+  for (f = 0; f < 13; f++) simUnir_(hoja, mapa.logFila + f, mapa.logCol + 4, 1, 5);
+  simFondo_(hoja.getRange(mapa.logFila, mapa.logCol, 1, 9), "#263238", "#FFFFFF", 11);
+  simFondo_(hoja.getRange(mapa.logFila + 1, mapa.logCol, 12, 9), "#10243F", "#E3F2FD", 10);
+  simBorde_(hoja.getRange(mapa.logFila, mapa.logCol, 13, 9), "#90A4AE");
 
-  simEstiloTitulo_(hoja.getRange(1, 1, 1, 8));
-  hoja.getRange(2, 1, 1, 7).setBackground("#263238").setFontColor("#FFFFFF").setFontWeight("bold");
-  hoja.getRange(5, 1, 1, 4).setBackground("#1565C0").setFontColor("#FFFFFF");
-  hoja.getRange(6, 1, 8, 4).setBackground("#1A2332").setFontColor("#E3F2FD");
-  hoja.getRange(16, 1, 1, 4).setBackground("#37474F").setFontColor("#FFFFFF");
-  hoja.getRange(17, 2).setBackground("#A5D6A7");
-  hoja.getRange(17, 4).setBackground("#90CAF9");
-  hoja.getRange(18, 2).setBackground("#CE93D8");
-  hoja.getRange(16, 7, 4, 2).setBackground("#263238").setFontColor("#FFFFFF");
-  hoja.getRange(4, 10, 1, 16).setBackground("#4A148C").setFontColor("#FFFFFF");
-  hoja.getRange(5, 10, 1, 5).setBackground("#6A1B9A").setFontColor("#FFFFFF");
-  hoja.getRange(12, 10, 1, 17).setBackground("#0D47A1").setFontColor("#FFFFFF");
-  hoja.getRange(13, 11, 16, 16).setBackground("#1565C0").setFontColor("#FFFFFF").setHorizontalAlignment("center");
-  hoja.getRange(30, 10, 1, 8).setBackground("#FFF3E0");
-  hoja.getRange(32, 10, 1, 8).setBackground("#EF6C00").setFontColor("#FFFFFF");
-  hoja.getRange(50, 10, 1, 5).setBackground("#263238").setFontColor("#FFFFFF");
-  if (hoja.setRowHeight) hoja.setRowHeight(30, 48);
-  var col;
-  for (col = 11; col <= 26; col++) hoja.setColumnWidth(col, 36);
-  hoja.setColumnWidth(1, 150);
-  hoja.setColumnWidth(2, 120);
-  hoja.setColumnWidth(3, 120);
-  hoja.setColumnWidth(4, 140);
-  hoja.setColumnWidth(10, 160);
-  hoja.setFrozenRows(3);
+  hoja.getRange(mapa.texto[0], mapa.texto[1] - 1).setValue("Tecla");
+  hoja.getRange(mapa.va[0], mapa.va[1] - 1).setValue("VA");
+  hoja.getRange(mapa.valor[0], mapa.valor[1] - 1).setValue("Valor");
+  simFondo_(hoja.getRange(mapa.texto[0], mapa.texto[1]), "#FFF9C4", "#1A1A1A", 12);
+  simFondo_(hoja.getRange(mapa.va[0], mapa.va[1]), "#FFF9C4", "#1A1A1A", 12);
+  simFondo_(hoja.getRange(mapa.valor[0], mapa.valor[1]), "#FFF9C4", "#1A1A1A", 12);
+  hoja.getRange(mapa.pruebas[0], mapa.pruebas[1]).setValue("");
+
+  if (hoja.setFrozenRows) hoja.setFrozenRows(3);
   simProteger_(hoja, [
-    hoja.getRange(3, 1, 1, 7),
-    hoja.getRange(3, 4, 1, 2)
+    hoja.getRange(mapa.step[0], mapa.step[1]),
+    hoja.getRange(mapa.run[0], mapa.run[1]),
+    hoja.getRange(mapa.load[0], mapa.load[1]),
+    hoja.getRange(mapa.pause[0], mapa.pause[1]),
+    hoja.getRange(mapa.reset[0], mapa.reset[1]),
+    hoja.getRange(mapa.prog[0], mapa.prog[1]),
+    hoja.getRange(mapa.delay[0], mapa.delay[1]),
+    hoja.getRange(mapa.texto[0], mapa.texto[1]),
+    hoja.getRange(mapa.va[0], mapa.va[1]),
+    hoja.getRange(mapa.valor[0], mapa.valor[1])
   ]);
 }
 
 function simPintarPerifericos_(ss) {
   var hoja = simHoja_(ss, "PERIFERICOS");
   simLimpiarLienzo_(hoja);
-  simPegar_(hoja, 1, 1, [[
-    "PERIFERICOS",
-    "Cada letra es una tecla. La casilla de abajo también la encola. No hay cuadro de texto.",
-    "", "", "", "", "", "", "", "", "", "", ""
-  ]]);
-  var fila1 = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"];
-  var fila2 = ["N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
-  var fila3 = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "Espacio", "Borrar", ""];
-  simPegar_(hoja, 3, 1, [fila1]);
-  simPegar_(hoja, 5, 1, [fila2]);
-  simPegar_(hoja, 7, 1, [fila3]);
+  if (hoja.setHiddenGridlines) hoja.setHiddenGridlines(true);
   var c;
-  for (c = 1; c <= 13; c++) {
-    hoja.getRange(4, c).insertCheckboxes();
-    hoja.getRange(6, c).insertCheckboxes();
+  for (c = 1; c <= 21; c++) hoja.setColumnWidth(c, c % 2 ? 46 : 8);
+  simFondo_(hoja.getRange(1, 1, 28, 21), "#0B1016", "#E7EEF6", 11);
+  hoja.getRange(1, 1).setValue("PERIFERICOS");
+  simUnir_(hoja, 1, 1, 1, 11);
+  simFondo_(hoja.getRange(1, 1), "#1565C0", "#FFFFFF", 16);
+  var libres = [];
+  function ponerFila(fila, teclas, inicio) {
+    var i;
+    var col = inicio;
+    if (hoja.setRowHeight) {
+      hoja.setRowHeight(fila, 26);
+      hoja.setRowHeight(fila + 1, 22);
+    }
+    for (i = 0; i < teclas.length; i++) {
+      var etiqueta = hoja.getRange(fila, col);
+      etiqueta.setValue(teclas[i]);
+      simFondo_(etiqueta, "#314052", "#FFFFFF", 12);
+      etiqueta.setFontWeight("bold");
+      var casilla = hoja.getRange(fila + 1, col);
+      casilla.insertCheckboxes();
+      simFondo_(casilla, "#1A2430", "#FFFFFF", 10);
+      libres.push(casilla);
+      col += 2;
+    }
   }
-  for (c = 1; c <= 12; c++) hoja.getRange(8, c).insertCheckboxes();
-  hoja.getRange(3, 1, 1, 13).setBackground("#263238").setFontColor("#FFFFFF").setHorizontalAlignment("center");
-  hoja.getRange(5, 1, 1, 13).setBackground("#263238").setFontColor("#FFFFFF").setHorizontalAlignment("center");
-  hoja.getRange(7, 1, 1, 12).setBackground("#263238").setFontColor("#FFFFFF").setHorizontalAlignment("center");
-  simPegar_(hoja, 10, 1, [[
+  ponerFila(3, ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"], 1);
+  ponerFila(6, ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"], 3);
+  ponerFila(9, ["A", "S", "D", "F", "G", "H", "J", "K", "L"], 3);
+  ponerFila(12, ["Z", "X", "C", "V", "B", "N", "M"], 5);
+  hoja.getRange(15, 5).setValue("Espacio");
+  simUnir_(hoja, 15, 5, 1, 9);
+  simFondo_(hoja.getRange(15, 5), "#314052", "#FFFFFF", 12);
+  hoja.getRange(16, 5).insertCheckboxes();
+  simFondo_(hoja.getRange(16, 5), "#1A2430", "#FFFFFF", 10);
+  libres.push(hoja.getRange(16, 5));
+  hoja.getRange(15, 17).setValue("Borrar");
+  simFondo_(hoja.getRange(15, 17), "#C62828", "#FFFFFF", 12);
+  hoja.getRange(16, 17).insertCheckboxes();
+  simFondo_(hoja.getRange(16, 17), "#C62828", "#FFFFFF", 10);
+  libres.push(hoja.getRange(16, 17));
+  if (hoja.setRowHeight) {
+    hoja.setRowHeight(5, 8);
+    hoja.setRowHeight(8, 8);
+    hoja.setRowHeight(11, 8);
+    hoja.setRowHeight(14, 8);
+    hoja.setRowHeight(15, 26);
+    hoja.setRowHeight(22, 36);
+  }
+  simPegar_(hoja, 18, 1, [[
     "Cabeza", simRefEsc_("kbdHead"),
     "Cola", simRefEsc_("kbdTail"),
     "Cuenta", simRefEsc_("kbdCount"),
-    "", "", "", "", "", "", ""
+    "FIFO F0-F7"
   ]]);
+  var fifo = [];
+  for (c = 0; c < 8; c++) fifo.push("=_ESTADO!" + simColumna_(c + 1) + (SIM_FILA_RAM + 15));
+  simPegar_(hoja, 19, 1, [fifo]);
+  simFondo_(hoja.getRange(19, 1, 1, 8), "#10243F", "#E3F2FD", 12);
   var lcd = ["LCD"];
   for (c = 0; c < 8; c++) lcd.push("=_ESTADO!" + simColumna_(c + 1) + "76");
-  while (lcd.length < 13) lcd.push("");
-  simPegar_(hoja, 12, 1, [lcd]);
-  hoja.getRange(12, 2, 1, 8).setBackground("#000000").setFontColor("#39FF14").setFontSize(18).setHorizontalAlignment("center");
-  simEstiloTitulo_(hoja.getRange(1, 1, 1, 2));
-  hoja.setFrozenRows(1);
-  simProteger_(hoja, [hoja.getRange(4, 1, 1, 13), hoja.getRange(6, 1, 1, 13), hoja.getRange(8, 1, 1, 12)]);
+  simPegar_(hoja, 21, 1, [lcd]);
+  simFondo_(hoja.getRange(22, 1, 1, 8), "#000000", "#39FF14", 18);
+  var glifos = [];
+  for (c = 0; c < 8; c++) glifos.push("=_ESTADO!" + simColumna_(c + 1) + "76");
+  simPegar_(hoja, 22, 1, [glifos]);
+  simFondo_(hoja.getRange(22, 1, 1, 8), "#000000", "#39FF14", 18);
+  if (hoja.setFrozenRows) hoja.setFrozenRows(1);
+  simProteger_(hoja, libres);
 }
 
 function simPintarCpu_(ss) {
@@ -901,7 +1137,8 @@ function simResetHoja() {
 function simCargarDesdePanel() {
   var ss = simLibro_();
   var panel = ss.getSheetByName("PANEL");
-  var id = simIdPrograma_(panel ? panel.getRange(3, 4).getValue() : "");
+  var mapaCarga = simMapaPanel_();
+  var id = simIdPrograma_(panel ? panel.getRange(mapaCarga.prog[0], mapaCarga.prog[1]).getValue() : "");
   if (!id) throw new Error("Elija P1, P2 o P3 en el selector.");
   return simConCandado_(function () {
     var e = simLeerEstado_(ss);
@@ -915,7 +1152,8 @@ function simCargarDesdePanel() {
 function simTeclearHoja() {
   var ss = simLibro_();
   var panel = ss.getSheetByName("PANEL");
-  var texto = panel ? panel.getRange(11, 2).getValue() : "";
+  var mapaTecla = simMapaPanel_();
+  var texto = panel ? panel.getRange(mapaTecla.texto[0], mapaTecla.texto[1]).getValue() : "";
   simConCandado_(function () {
     var e = simLeerEstado_(ss);
     var r = simTeclear(e, texto);
@@ -938,8 +1176,9 @@ function simLimpiarColaHoja() {
 function simEditarHoja() {
   var ss = simLibro_();
   var panel = ss.getSheetByName("PANEL");
-  var va = Number(panel.getRange(14, 2).getValue());
-  var valor = Number(panel.getRange(15, 2).getValue());
+  var mapaEd = simMapaPanel_();
+  var va = Number(panel.getRange(mapaEd.va[0], mapaEd.va[1]).getValue());
+  var valor = Number(panel.getRange(mapaEd.valor[0], mapaEd.valor[1]).getValue());
   if (!(va >= 0 && va <= 511) || !(valor >= 0 && valor <= 255)) {
     throw new Error("VA 0..511 y valor 0..255.");
   }
@@ -956,8 +1195,9 @@ function simProbarEnCopia() {
   var r = simProbarTodo();
   var panel = ss.getSheetByName("PANEL");
   if (panel) {
-    panel.getRange(96, 1).setValue(r.ok ? "Pruebas en memoria: OK" : "Pruebas con fallos");
-    panel.getRange(96, 2).setValue(r.fallos.join(" | ").slice(0, 500));
+    var mapaPr = simMapaPanel_();
+    panel.getRange(mapaPr.pruebas[0], mapaPr.pruebas[1]).setValue(r.ok ? "Pruebas en memoria: OK" : "Pruebas con fallos");
+    panel.getRange(mapaPr.pruebas[0], mapaPr.pruebas[1] + 1).setValue(r.fallos.join(" | ").slice(0, 500));
   }
   return r.ok ? "OK " + r.total : r.fallos.join("\n");
 }
@@ -1042,7 +1282,8 @@ function simLabEstado() {
   var delay = 280;
   var panel = ss.getSheetByName("PANEL");
   if (panel) {
-    var n = Number(panel.getRange(3, 5).getValue());
+    var mapaLab = simMapaPanel_();
+    var n = Number(panel.getRange(mapaLab.delay[0], mapaLab.delay[1]).getValue());
     if (n >= 40 && n <= 2000) delay = n;
   }
   var rec = e.recs && e.recs.length ? e.recs[e.recs.length - 1] : null;
@@ -1111,7 +1352,8 @@ function simPaqueteVisual() {
   var delay = 400;
   var panel = ss.getSheetByName("PANEL");
   if (panel) {
-    var n = Number(panel.getRange(3, 5).getValue());
+    var mapaVis = simMapaPanel_();
+    var n = Number(panel.getRange(mapaVis.delay[0], mapaVis.delay[1]).getValue());
     if (n >= 50 && n <= 5000) delay = n;
   }
   return { seq: e.visSeq || 0, delay: delay, recs: e.recs || [], evento: simEventoVisual(e) };
@@ -1147,20 +1389,22 @@ function onEdit(e) {
     else if (col === 6) simCargarFuente("P3");
     return;
   }
-  if (hoja === "PERIFERICOS" && (fila === 4 || fila === 6 || fila === 8)) {
+  if (hoja === "PERIFERICOS") {
+    if (fila < 2) return;
     var nombre = String(e.range.getSheet().getRange(fila - 1, col).getValue() || "");
+    if (!simEsTecla_(nombre)) return;
     e.range.setValue(false);
-    if (simEsTecla_(nombre)) simPulsarDesdeLab(nombre);
+    simPulsarDesdeLab(nombre);
     return;
   }
-  if (hoja !== "PANEL" || fila !== 3) return;
-  if (col !== 1 && col !== 2 && col !== 3 && col !== 6 && col !== 7) return;
+  var mapaEdicion = simMapaPanel_();
+  if (hoja !== "PANEL" || fila !== mapaEdicion.ctrlFila) return;
   e.range.setValue(false);
-  if (col === 1) simStep();
-  else if (col === 2) simRun();
-  else if (col === 3) simCargarDesdePanel();
-  else if (col === 6) simStop();
-  else if (col === 7) simResetHoja();
+  if (col === mapaEdicion.step[1]) simStep();
+  else if (col === mapaEdicion.run[1]) simRun();
+  else if (col === mapaEdicion.load[1]) simCargarDesdePanel();
+  else if (col === mapaEdicion.pause[1]) simStop();
+  else if (col === mapaEdicion.reset[1]) simResetHoja();
 }
 
 function onSelectionChange(e) {
