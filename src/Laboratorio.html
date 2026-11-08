@@ -15,38 +15,58 @@
   .led { width: 12px; height: 12px; border-radius: 50%; background: #243044; display: inline-block; }
   .led.on { background: #7cffb2; box-shadow: 0 0 8px #7cffb2; }
   .fase { font-family: ui-monospace, monospace; color: #ffcc80; }
-  #plano { position: relative; padding: 12px; }
-  svg.wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 3; }
-  .layout { display: grid; grid-template-columns: minmax(280px, 360px) minmax(240px, 300px) minmax(420px, 1fr); gap: 12px; }
-  .card { background: #141c27; border: 1px solid #2a3b52; border-radius: 12px; padding: 10px; position: relative; }
-  h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; color: #90caf9; }
+  main { width: 1150px; margin: 0 auto; position: relative; }
+  svg.wires { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 3; }
+  .cols { display: grid; grid-template-columns: 300px minmax(640px, 1fr); gap: 20px; align-items: start; }
+  .col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .card { background: #141c27; border: 1px solid #2a3b52; border-radius: 12px; padding: 10px; }
+  h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .06em; color: #90caf9; }
   .regs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .reg { background: #0e1622; border-radius: 8px; padding: 6px 8px; border: 1px solid #243044; }
   .reg b { display: block; color: #8eb4d6; font-size: 11px; }
   .reg span { font-family: ui-monospace, monospace; font-size: 18px; }
-  .trap { margin-top: 10px; clip-path: polygon(8% 0, 92% 0, 78% 100%, 22% 100%); background: #26343f; border: 0; min-height: 118px; padding: 14px 28px 10px; text-align: center; }
-  .trap .ops { display: flex; justify-content: space-between; font-family: ui-monospace, monospace; }
-  .op1 { color: #a5d6a7; } .op2 { color: #90caf9; } .opr { color: #e1bee7; font-size: 18px; }
-  .flags { display: flex; gap: 8px; justify-content: center; margin-top: 8px; font-size: 12px; }
-  .word { font-family: ui-monospace, monospace; font-size: 11px; color: #b0bec5; word-break: break-all; }
-  table.mem, table.pt { border-collapse: collapse; font-family: ui-monospace, monospace; font-size: 10px; }
-  table.mem td, table.mem th, table.pt td, table.pt th { border: 1px solid #1e3a5f; text-align: center; padding: 1px 2px; }
-  table.mem td { background: #123056; color: #d6e8ff; min-width: 22px; }
-  table.mem td.rd { outline: 2px solid #ffb74d; }
-  table.mem td.wr { outline: 2px solid #ef9a9a; }
-  table.mem th, table.pt th { color: #90caf9; background: #0e1a28; }
-  .wide { grid-column: 1 / -1; overflow-x: auto; }
-  .cache { display: flex; flex-wrap: wrap; gap: 8px; }
-  .line { background: #0e1622; border-radius: 8px; padding: 6px; min-width: 180px; }
+  .trap { position: relative; min-height: 150px; padding: 18px 28px 12px; text-align: center; background: transparent; }
+  .trap::before { content: ""; position: absolute; inset: 0; background: #26343f; clip-path: polygon(8% 0, 92% 0, 78% 100%, 22% 100%); z-index: 0; }
+  .trap > * { position: relative; z-index: 1; }
+  .nombre { font-size: 11px; color: #90a4ae; }
+  .ops { display: flex; justify-content: space-between; font-family: ui-monospace, monospace; font-size: 16px; }
+  .op1 { color: #a5d6a7; } .op2 { color: #90caf9; } .opr { color: #e1bee7; font-size: 20px; margin-top: 6px; }
+  .flags { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 8px; font-size: 12px; }
+  .word { font-family: ui-monospace, monospace; font-size: 12px; color: #cfd8dc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  table.ram, table.vm, table.pt { border-collapse: collapse; font-family: ui-monospace, monospace; }
+  table.ram { width: 100%; table-layout: fixed; font-size: 12px; }
+  table.ram td, table.ram th { height: 20px; text-align: center; border: 1px solid #1e3a5f; }
+  table.ram td { background: #1565c0; color: #fff; }
+  table.ram th { background: #0d47a1; color: #e3f2fd; font-size: 11px; }
+  table.ram td.rd { outline: 2px solid #ffb74d; }
+  table.ram td.wr { outline: 2px solid #ff8a80; }
+  .vm-par { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  table.vm { width: 100%; table-layout: fixed; font-size: 11px; }
+  table.vm td, table.vm th { height: 18px; text-align: center; border: 1px solid #1e3a5f; }
+  table.vm td { background: #0d2137; color: #d6e8ff; }
+  table.vm th { background: #102a43; color: #90caf9; font-size: 10px; }
+  table.pt { width: 100%; font-size: 12px; margin-top: 8px; }
+  table.pt td, table.pt th { border: 1px solid #345; padding: 2px 4px; text-align: center; }
+  table.pt th { color: #ffcc80; }
+  .cache { display: flex; flex-direction: column; gap: 6px; }
+  .line { background: #0e1622; border-radius: 8px; padding: 6px 8px; font-size: 12px; }
   .line b { color: #ce93d8; }
-  .keys { display: flex; flex-wrap: wrap; gap: 4px; }
-  .keys button { min-width: 36px; background: #1a2330; border: 1px solid #345; }
-  .lcd { display: flex; gap: 4px; margin-top: 8px; }
-  .lcd i { width: 28px; height: 36px; background: #000; color: #39ff14; font-style: normal; display: grid; place-items: center; font-family: ui-monospace, monospace; font-size: 20px; border-radius: 4px; }
-  .fifo { display: flex; gap: 4px; margin-top: 6px; }
-  .fifo b { width: 28px; text-align: center; background: #102033; border-radius: 4px; font-family: ui-monospace, monospace; }
-  #msg { color: #ffab91; min-height: 1.2em; }
-  @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
+  .bytes { font-family: ui-monospace, monospace; letter-spacing: .02em; }
+  .leyenda { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; padding: 0 14px 8px; }
+  .leyenda i { display: inline-block; width: 18px; height: 4px; margin-right: 4px; vertical-align: middle; }
+  .keys { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .fila { display: flex; gap: 4px; }
+  .keys button { min-width: 42px; height: 42px; background: linear-gradient(#314052, #1a2430); border: 1px solid #5c738a; border-bottom-width: 4px; border-radius: 6px; font-size: 14px; }
+  .lcd { display: flex; gap: 6px; }
+  .lcd i { width: 40px; height: 48px; background: #000; color: #39ff14; font-style: normal; display: grid; place-items: center; font-family: ui-monospace, monospace; font-size: 28px; border-radius: 4px; }
+  .fifo { display: flex; gap: 6px; }
+  .fifo b { width: 36px; height: 28px; display: grid; place-items: center; background: #102033; border-radius: 4px; font-family: ui-monospace, monospace; font-size: 13px; }
+  #msg { color: #ffab91; min-height: 18px; padding: 0 14px; font-size: 12px; }
+  #vista-io { display: none; width: 1150px; margin: 12px auto; }
+  body.vista-io #vista-main { display: none; }
+  body.vista-io #vista-io { display: block; }
+  body.vista-vm #col-izq, body.vista-vm #ramCard { display: none; }
+  body.vista-vm .cols { grid-template-columns: 1fr; }
 </style>
 </head>
 <body>
@@ -64,63 +84,77 @@
   <span id="pausa"></span>
 </div>
 <div id="msg"></div>
-<div id="plano">
-<div class="layout">
-  <section class="card" id="cpu">
-    <h2>CPU</h2>
-    <div class="regs" id="regs"></div>
-    <p id="texto"></p>
-    <div class="word" id="word"></div>
-  </section>
-  <section class="card" id="aluCard">
-    <h2>ALU</h2>
-    <div class="trap" id="alu">
-      <div class="ops"><span class="op1" id="aluA">—</span><span id="aluOp"> </span><span class="op2" id="aluB">—</span></div>
-      <div class="opr" id="aluR">—</div>
-      <div class="flags"><span id="fz">ZF 0</span><span id="fc">CF 0</span><span id="fs">SF 0</span></div>
-    </div>
-  </section>
-  <section class="card" id="cacheCard">
-    <h2>Caché</h2>
-    <div class="cache" id="cache"></div>
-    <p id="rates"></p>
-  </section>
-  <section class="card wide" id="ramCard">
-    <h2 id="ram">RAM 256 B</h2>
-    <div id="ramGrid"></div>
-  </section>
-  <section class="card wide" id="vmCard">
-    <h2 id="vm">Memoria virtual 512 B · 7 marcos paginables · marco 7 fijo</h2>
-    <div id="vmGrid"></div>
-    <h2 id="pt" style="margin-top:10px">Tabla de páginas</h2>
-    <div id="ptGrid"></div>
-  </section>
-  <section class="card wide" id="ioCard">
-    <h2 id="kbd">Teclado · FIFO 8 en RAM F0–F7</h2>
-    <div class="keys" id="keys"></div>
-    <div class="fifo" id="fifo"></div>
-    <p id="cola"></p>
-    <h2 id="lcd">LCD</h2>
-    <div class="lcd" id="lcdRow"></div>
-  </section>
+<div class="leyenda">
+  <span><i style="background:#4fc3f7"></i>dirección</span>
+  <span><i style="background:#ffb74d"></i>datos</span>
+  <span><i style="background:#ce93d8"></i>control</span>
+  <span><i style="background:#26c6da"></i>E/S</span>
+  <span><i style="background:#81c784"></i>página 32 B</span>
+  <span><i style="background:#8aa0b8"></i>High-Z punteado, sin animar</span>
+  <span>EN = triángulo lleno en el puerto</span>
 </div>
+<button class="ghost" id="bIo" style="margin:0 14px 8px">Periféricos</button>
+<main id="plano">
+<div id="vista-main" class="cols">
+  <div class="col" id="col-izq">
+    <section class="card" id="cpu">
+      <h2>CPU</h2>
+      <div class="regs" id="regs"></div>
+      <p id="texto"></p>
+      <div class="word" id="word" title=""></div>
+    </section>
+    <section class="card">
+      <h2>ALU</h2>
+      <div class="trap" id="alu" data-node="alu">
+        <div class="ops"><span><span class="nombre">Operando A</span><br><span class="op1" id="aluA">—</span></span><span id="aluOp">·</span><span><span class="nombre">Operando B</span><br><span class="op2" id="aluB">—</span></span></div>
+        <div class="nombre">Resultado</div>
+        <div class="opr" id="aluR">—</div>
+        <div class="flags"><span id="fz">ZF 0</span><span id="fc">CF 0</span><span id="fs">SF 0</span></div>
+      </div>
+    </section>
+    <section class="card" id="cacheCard">
+      <h2>Caché</h2>
+      <div class="cache" id="cache"></div>
+    </section>
+  </div>
+  <div class="col" id="col-der">
+    <section class="card" id="ramCard">
+      <h2 id="ram" data-node="ram">RAM 256 B</h2>
+      <div id="ramGrid"></div>
+    </section>
+    <section class="card" id="vmCard">
+      <h2 id="vm" data-node="vm">Memoria virtual 512 B · 7 marcos paginables · marco 7 fijo</h2>
+      <div class="vm-par" id="vmGrid"></div>
+      <h2 id="pt" data-node="pt">Tabla de páginas</h2>
+      <div id="ptGrid"></div>
+    </section>
+  </div>
+</div>
+<section class="card" id="vista-io">
+  <h2 id="kbd" data-node="kbd">Teclado · FIFO 8 en F0–F7</h2>
+  <div class="keys" id="keys"></div>
+  <div class="fifo" id="fifo"></div>
+  <p id="cola"></p>
+  <h2 id="lcd" data-node="lcd">LCD</h2>
+  <div class="lcd" id="lcdRow"></div>
+</section>
 <svg class="wires" id="wires"></svg>
-</div>
+</main>
 <script>
 var GEN = null, PAUSA = false, VIVO = false, ULTIMO = -1;
 var NODOS = ["pc","ax","bx","cx","dx","ir","mar","mdr","alu","l1","l2","ram","vm","pt","kbd","lcd"];
 var RUTAS = {
-  "PC-MAR": ["pc","mar","addr"],
-  "MDR-IR": ["mdr","ir","data"],
-  "ALU": ["ax","alu","data"],
-  "CPU-RAM": ["mar","ram","addr"],
-  "RAM-CPU": ["ram","mdr","data"],
-  "L1-L2-RAM": ["l1","ram","addr"],
-  "RAM-VM": ["ram","vm","page"],
-  "VM-RAM": ["vm","ram","page"],
-  "CPU-IO": ["mdr","lcd","io"],
-  "IO-CPU": ["kbd","ax","io"],
-  "PT": ["pt","vm","page"]
+  "PC-MAR": ["pc","e","mar","e","addr","PC","MAR"],
+  "MDR-IR": ["mdr","e","ir","e","data","MDR","IR"],
+  "ALU": ["ax","s","alu","n","data","AX","ALU"],
+  "CPU-RAM": ["mar","e","ram","w","addr","MAR","RAM"],
+  "RAM-CPU": ["ram","w","mdr","e","data","RAM","MDR"],
+  "L1-L2-RAM": ["l1","e","ram","w","addr","L1","RAM"],
+  "RAM-VM": ["ram","s","vm","n","page","RAM","VM"],
+  "VM-RAM": ["vm","n","ram","s","page","VM","RAM"],
+  "CPU-IO": ["mdr","s","lcd","n","io","MDR","LCD"],
+  "IO-CPU": ["kbd","n","ax","s","io","KBD","AX"],
+  "PT": ["pt","n","vm","s","page","TABLA","VM"]
 };
 var COLOR = { addr: "#4fc3f7", data: "#ffb74d", control: "#ce93d8", io: "#26c6da", page: "#81c784", z: "#607d8b" };
 function $(id) { return document.getElementById(id); }
@@ -133,54 +167,89 @@ function pedir(nombre, arg) {
     if (arg === undefined) run[nombre](); else run[nombre](arg);
   });
 }
-function centro(id) {
-  var plano = $("plano").getBoundingClientRect();
+function puerto(id, lado) {
   var n = document.querySelector('[data-node="' + id + '"]');
+  var plano = $("plano").getBoundingClientRect();
   if (!n) return null;
-  var r = n.getBoundingClientRect();
-  return { x: r.left - plano.left + r.width / 2, y: r.top - plano.top + r.height / 2 };
+  var host = n.closest(".card") || n;
+  var r = host.getBoundingClientRect();
+  var yNodo = n.getBoundingClientRect();
+  var y = (yNodo.top + yNodo.bottom) / 2 - plano.top;
+  var x = r.left - plano.left;
+  if (lado === "e") return { x: r.right - plano.left, y: y };
+  if (lado === "w") return { x: x, y: y };
+  if (lado === "s") return { x: r.right - plano.left - 8, y: r.bottom - plano.top };
+  return { x: r.right - plano.left - 8, y: r.top - plano.top };
 }
-function ortho(a, b) {
-  var xm = Math.round((a.x + b.x) / 2);
-  return "M " + a.x + " " + a.y + " H " + xm + " V " + b.y + " H " + b.x;
+function canal() {
+  var izq = document.getElementById("col-izq").getBoundingClientRect();
+  var der = document.getElementById("col-der").getBoundingClientRect();
+  var plano = $("plano").getBoundingClientRect();
+  return (izq.right - plano.left + (der.left - plano.left)) / 2;
+}
+function camino(a, la, b, lb) {
+  var x = canal();
+  if (la === "e" && lb === "e") return "M " + a.x + " " + a.y + " H " + (x) + " V " + b.y + " H " + b.x;
+  if (la === "e" && lb === "w") return "M " + a.x + " " + a.y + " H " + x + " V " + b.y + " H " + b.x;
+  if (la === "s" && lb === "n") return "M " + a.x + " " + a.y + " V " + ((a.y + b.y) / 2) + " H " + b.x + " V " + b.y;
+  if (la === "w" && lb === "e") return "M " + a.x + " " + a.y + " H " + x + " V " + b.y + " H " + b.x;
+  if (la === "n" && lb === "s") return "M " + a.x + " " + a.y + " V " + ((a.y + b.y) / 2) + " H " + b.x + " V " + b.y;
+  return "M " + a.x + " " + a.y + " H " + x + " V " + b.y + " H " + b.x;
 }
 function dibujar(rec) {
   var svg = $("wires");
+  var w = $("plano").clientWidth;
   var h = $("plano").scrollHeight;
-  svg.setAttribute("viewBox", "0 0 " + $("plano").clientWidth + " " + h);
-  svg.setAttribute("width", $("plano").clientWidth);
+  svg.setAttribute("viewBox", "0 0 " + w + " " + h);
+  svg.setAttribute("width", w);
   svg.setAttribute("height", h);
   var html = "";
-  var id, par, a, b, activo, col, d, valor;
+  var id, par, a, b, activo, col, d;
   for (id in RUTAS) {
     if (!RUTAS.hasOwnProperty(id)) continue;
     par = RUTAS[id];
-    a = centro(par[0]); b = centro(par[1]);
+    a = puerto(par[0], par[1]);
+    b = puerto(par[2], par[3]);
     if (!a || !b) continue;
     activo = rec && rec.ruta && rec.ruta.id === id;
-    col = activo ? COLOR[par[2]] : "#607d8b";
-    d = ortho(a, b);
-    html += '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="' + (activo ? 4 : 2) + '"' + (activo ? "" : ' stroke-dasharray="6 5" opacity="0.9"') + ' marker-end="url(#flecha)"/>';
+    col = activo ? COLOR[par[4]] : "#8aa0b8";
+    d = camino(a, par[1], b, par[3]);
+    html += '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="' + (activo ? 4 : 2) + '"' + (activo ? "" : ' stroke-dasharray="6 5"') + ' marker-end="url(#flecha)"/>';
+    html += '<text x="' + (a.x + 4) + '" y="' + (a.y - 4) + '" fill="' + col + '" font-size="11">' + par[5] + "</text>";
+    html += '<text x="' + (b.x + 4) + '" y="' + (b.y - 4) + '" fill="' + col + '" font-size="11">' + par[6] + "</text>";
     if (activo) {
-      valor = rec.emisor + " " + rec.valor;
-      html += '<circle r="5" fill="' + col + '"><animateMotion dur="0.7s" fill="freeze" path="' + d + '"/></circle>';
-      html += '<text x="' + ((a.x + b.x) / 2) + '" y="' + ((a.y + b.y) / 2 - 6) + '" fill="' + col + '" font-size="11">' + valor + "</text>";
+      html += '<circle r="6" fill="' + col + '"><animateMotion dur="0.8s" fill="freeze" path="' + d + '"/></circle>';
+      html += '<text x="' + canal() + '" y="' + ((a.y + b.y) / 2 - 8) + '" fill="' + col + '" font-size="12">' + par[5] + " → " + par[6] + " " + (rec.valor === "" || rec.valor === undefined ? "" : rec.valor) + "</text>";
     }
   }
-  svg.innerHTML = '<defs><marker id="flecha" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#90a4ae"/></marker></defs>' + html;
+  svg.innerHTML = '<defs><marker id="flecha" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#cfd8dc"/></marker></defs>' + html;
 }
-function tabla(bytes, cols, marca) {
-  var h = "<table class='mem'><tr><th></th>";
+function tablaRam(bytes, marca) {
+  var h = "<table class='ram'><tr><th></th>";
   var c, r, i, cls;
-  for (c = 0; c < cols; c++) h += "<th>" + c.toString(16).toUpperCase() + "</th>";
+  for (c = 0; c < 16; c++) h += "<th>" + c.toString(16).toUpperCase() + "</th>";
   h += "</tr>";
-  for (r = 0; r < bytes.length / cols; r++) {
-    h += "<tr><th>" + (r * cols).toString(16).toUpperCase() + "</th>";
-    for (c = 0; c < cols; c++) {
-      i = r * cols + c;
-      cls = "";
-      if (marca && marca.pa === i) cls = marca.wr ? "wr" : "rd";
+  for (r = 0; r < 16; r++) {
+    h += "<tr><th>" + hex2(r * 16) + "</th>";
+    for (c = 0; c < 16; c++) {
+      i = r * 16 + c;
+      cls = marca && marca.pa === i ? (marca.wr ? "wr" : "rd") : "";
       h += "<td class='" + cls + "'>" + hex2(bytes[i]) + "</td>";
+    }
+    h += "</tr>";
+  }
+  return h + "</table>";
+}
+function tablaVm(bytes, desde) {
+  var h = "<table class='vm'><tr><th>" + (desde ? "10" : "00") + "</th>";
+  var p, c, i;
+  for (c = 0; c < 16; c++) h += "<th>" + (desde + c).toString(16).toUpperCase() + "</th>";
+  h += "</tr>";
+  for (p = 0; p < 16; p++) {
+    h += "<tr><th>" + hex2(p * 32) + "</th>";
+    for (c = 0; c < 16; c++) {
+      i = p * 32 + desde + c;
+      h += "<td>" + hex2(bytes[i]) + "</td>";
     }
     h += "</tr>";
   }
@@ -196,6 +265,7 @@ function render(snap, rec) {
   $("regs").innerHTML = html;
   $("texto").textContent = snap.texto || snap.evento || "";
   $("word").textContent = snap.bits || "";
+  $("word").title = snap.bits || "";
   $("aluA").textContent = hex2(snap.alu.a);
   $("aluB").textContent = hex2(snap.alu.b);
   $("aluOp").textContent = snap.alu.op || "·";
@@ -208,22 +278,25 @@ function render(snap, rec) {
   ["Rd","Wr","Ck","Io"].forEach(function (k) {
     $("led" + k).className = "led" + (snap.control[k.toLowerCase()] ? " on" : "");
   });
-  var marca = { pa: snap.marca && snap.marca.pa !== "" ? Number(snap.marca.pa) : -1, wr: snap.control.wr };
-  $("ramGrid").innerHTML = tabla(snap.ram, 16, marca);
+  var marca = { pa: snap.marca && snap.marca.pa !== "" && snap.marca.pa !== null ? Number(snap.marca.pa) : -1, wr: snap.control.wr };
+  $("ram").textContent = "RAM 256 B" + (marca.pa >= 0 ? " · activa " + marca.pa.toString(16).toUpperCase() + "h" : "");
   $("ram").setAttribute("data-node", "ram");
-  $("vmGrid").innerHTML = tabla(snap.swap, 32, null);
-  $("vm").setAttribute("data-node", "vm");
+  $("ramGrid").innerHTML = tablaRam(snap.ram, marca);
+  $("vmGrid").innerHTML = tablaVm(snap.swap, 0) + tablaVm(snap.swap, 16);
   html = "<table class='pt'><tr><th>VPN</th><th>P</th><th>PFN</th><th>D</th><th>R</th></tr>";
   snap.pt.forEach(function (p) {
     html += "<tr><td>" + p.vpn + "</td><td>" + p.p + "</td><td>" + p.pfn + "</td><td>" + p.d + "</td><td>" + p.r + "</td></tr>";
   });
   $("ptGrid").innerHTML = html + "</table>";
   $("pt").setAttribute("data-node", "pt");
-  function linea(nombre, lin) {
-    return "<div class='line' data-node='" + (nombre === "L1I" || nombre === "L1D" ? "l1" : "l2") + "'><b>" + nombre + "</b> V" + lin.v + " tag " + lin.tag + "<br>" + lin.bytes.map(hex2).join(" ") + "</div>";
+  function stat(s) {
+    var rate = s.rate === "—" || s.rate === null || s.rate === undefined ? "—" : s.rate + "%";
+    return "HIT " + s.h + "  MISS " + s.m + "  RATE " + rate;
   }
-  $("cache").innerHTML = linea("L1I", snap.l1i) + linea("L1D", snap.l1d) + snap.l2.map(function (l, n) { return linea("L2." + n, l); }).join("");
-  $("rates").textContent = "L1I " + snap.rates.l1i + "  L1D " + snap.rates.l1d + "  L2 " + snap.rates.l2;
+  function linea(nombre, lin, nodo) {
+    return "<div class='line' data-node='" + nodo + "'><b>" + nombre + "</b> V " + lin.v + " tag " + lin.tag + "<div class='bytes'>" + lin.bytes.map(hex2).join(" ") + "</div><div>" + stat(nombre === "L1I" ? snap.rates.l1i : nombre === "L1D" ? snap.rates.l1d : snap.rates.l2) + "</div></div>";
+  }
+  $("cache").innerHTML = linea("L1I", snap.l1i, "l1") + linea("L1D", snap.l1d, "l1") + "<div class='line' data-node='l2'><b>L2</b> 4 líneas × 8 B<div class='bytes'>" + snap.l2.map(function (l, n) { return "L" + n + " " + l.bytes.map(hex2).join(" "); }).join("<br>") + "</div><div>" + stat(snap.rates.l2) + "</div></div>";
   $("fifo").innerHTML = snap.kbd.map(function (b) { return "<b>" + hex2(b) + "</b>"; }).join("");
   $("cola").textContent = "cabeza " + snap.kbdHead + "  cola " + snap.kbdTail + "  cuenta " + snap.kbdCount;
   $("lcdRow").innerHTML = (snap.lcd + "        ").slice(0, 8).split("").map(function (ch) { return "<i>" + (ch === " " ? "" : ch) + "</i>"; }).join("");
@@ -233,9 +306,12 @@ function render(snap, rec) {
   else dibujar(rec);
 }
 function teclas() {
-  var letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split("");
-  letras.push("Espacio", "Borrar");
-  $("keys").innerHTML = letras.map(function (t) { return "<button data-key='" + t + "'>" + t + "</button>"; }).join("");
+  var filas = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM", "1234567890"];
+  var html = filas.map(function (fila) {
+    return "<div class='fila'>" + fila.split("").map(function (t) { return "<button data-key='" + t + "'>" + t + "</button>"; }).join("") + "</div>";
+  }).join("");
+  html += "<div class='fila'><button data-key='Espacio'>Espacio</button><button data-key='Borrar'>Borrar</button></div>";
+  $("keys").innerHTML = html;
   $("keys").onclick = function (ev) {
     var k = ev.target.getAttribute("data-key");
     if (!k || window.LAB_FIXTURE) return;
@@ -292,7 +368,13 @@ $("bReset").onclick = function () {
   };
 });
 teclas();
-if (window.LAB_FIXTURE) { GEN = window.LAB_FIXTURE.gen; render(window.LAB_FIXTURE.snap, window.LAB_FIXTURE.rec); }
+$("bIo").onclick = function () { document.body.classList.toggle("vista-io"); };
+if (window.LAB_VISTA === "io") document.body.classList.add("vista-io");
+if (window.LAB_VISTA === "vm") document.body.classList.add("vista-vm");
+if (window.LAB_FIXTURE) {
+  GEN = window.LAB_FIXTURE.gen;
+  render(window.LAB_FIXTURE.snap, window.LAB_FIXTURE.rec);
+}
 else refrescar().catch(fallo);
 window.addEventListener("resize", function () { dibujar(null); });
 </script>

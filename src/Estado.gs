@@ -470,9 +470,9 @@ function simSnapshotLab(e) {
     l1d: simBytesLinea_(e.l1d),
     l2: [simBytesLinea_(e.l2[0]), simBytesLinea_(e.l2[1]), simBytesLinea_(e.l2[2]), simBytesLinea_(e.l2[3])],
     rates: {
-      l1i: simTextoTasa(e.cont.l1iH, e.cont.l1iM),
-      l1d: simTextoTasa(e.cont.l1dRH + e.cont.l1dWH, e.cont.l1dRM + e.cont.l1dWM),
-      l2: simTextoTasa(e.cont.l2H, e.cont.l2M)
+      l1i: { h: e.cont.l1iH, m: e.cont.l1iM, rate: simTextoTasa(e.cont.l1iH, e.cont.l1iM) },
+      l1d: { h: e.cont.l1dRH + e.cont.l1dWH, m: e.cont.l1dRM + e.cont.l1dWM, rate: simTextoTasa(e.cont.l1dRH + e.cont.l1dWH, e.cont.l1dRM + e.cont.l1dWM) },
+      l2: { h: e.cont.l2H, m: e.cont.l2M, rate: simTextoTasa(e.cont.l2H, e.cont.l2M) }
     },
     kbd: kbd,
     kbdHead: e.kbdHead || 0,
