@@ -280,7 +280,35 @@ function simProbarTodo() {
     simAfirmar(fallos, rechazo, "el script original se rechaza");
   });
 
-  if (total !== 15) fallos.push("se esperaban 15 casos y se ejecutaron " + total);
+  caso("16 P1 reanuda tras guardar cada micro-paso", function () {
+    var e = simEstadoInicial();
+    simAfirmar(fallos, simCargarCatalogo(e, "P1").ok === true, "P1 carga");
+    var n = 0;
+    var vioFallo = false;
+    var proboHojaVieja = false;
+    while (e.fase !== "HALT" && e.fase !== "ERROR" && n < 800) {
+      var bloque = simExportar(e);
+      if (e.fase === "PF3" && !proboHojaVieja) {
+        var i;
+        for (i = 0; i < bloque.escalares.length; i++) {
+          if (bloque.escalares[i][0] === "continuacion") bloque.escalares[i][1] = "";
+        }
+        proboHojaVieja = true;
+      }
+      var siguiente = simEstadoInicial();
+      simImportar(siguiente, bloque);
+      if (siguiente.fase === "PF2" || siguiente.fase === "PF3" || siguiente.fase === "PF4") vioFallo = true;
+      simMicroPaso(siguiente);
+      e = siguiente;
+      n++;
+    }
+    simAfirmar(fallos, vioFallo, "el fallo de página queda entre dos guardados");
+    simAfirmar(fallos, proboHojaVieja, "se vació la continuación como en la hoja ya preparada");
+    simAfirmar(fallos, e.fase === "HALT", "P1 llega a HLT tras recargar (" + e.fase + " " + e.error + ")");
+    simAfirmar(fallos, e.ax === 0x0C && e.bx === 0x04 && e.cx === 0 && e.dx === 0x04 && e.zf === 1, "los registros de P1 sobreviven al guardado");
+  });
+
+  if (total !== 16) fallos.push("se esperaban 16 casos y se ejecutaron " + total);
   var lineas = simInformePruebas_(total, fallos);
   if (fallos.length) throw new Error(lineas.join("\n"));
   return { ok: true, total: total, fallos: fallos };

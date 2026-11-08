@@ -223,17 +223,13 @@ function simPasoF6(e) {
   return "DECODE";
 }
 
-function simPasoDECODE(e) {
-  var b0 = (e.ir >> 8) & 255;
+function simConstruirDec(e) {
+  var b0 = (Number(e.ir) >> 8) & 255;
   var op = b0 >> 3;
   var nombre = SIM_OPNOMBRE[op];
-  if (!nombre) {
-    e.error = "Opcode desconocido " + op;
-    e.faseError = 1;
-    return "ERROR";
-  }
-  var b1 = e.ir & 255;
-  e.dec = {
+  if (!nombre) return null;
+  var b1 = Number(e.ir) & 255;
+  return {
     op: op, nombre: nombre,
     reg: (b0 >> 1) & 3,
     a8: b0 & 1,
@@ -241,6 +237,16 @@ function simPasoDECODE(e) {
     fuente: b1 & 3,
     addr: ((b0 & 1) << 8) | b1
   };
+}
+
+function simPasoDECODE(e) {
+  var dec = simConstruirDec(e);
+  if (!dec) {
+    e.error = "Opcode desconocido";
+    e.faseError = 1;
+    return "ERROR";
+  }
+  e.dec = dec;
   e.textoIR = simTextoDec(e.dec);
   e.evento = "DECODE " + e.textoIR;
   e.sub = 1;
@@ -468,6 +474,7 @@ function simExOUT(e) {
 }
 
 function simPasoEX(e) {
+  if (!e.dec || !e.dec.nombre) e.dec = simConstruirDec(e);
   var n = e.dec ? e.dec.nombre : "";
   if (n === "NOP") { e.evento = "NOP"; return "F1"; }
   if (n === "HLT") { e.evento = "HLT"; return "HALT"; }

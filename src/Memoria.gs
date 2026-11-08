@@ -74,7 +74,36 @@ function simIniciarFallo(e, va, reanudar, escritura, tipo) {
   return elec.dirty ? "PF2" : "PF3";
 }
 
+function simAsegurarPf(e) {
+  if (e.pf && typeof e.pf.vpn === "number") return true;
+  var texto = String(e.evento || e.banner || "");
+  var mVpn = texto.match(/VPN\s+(\d+)/);
+  if (!mVpn) {
+    e.error = "Falta el contexto del fallo de página. Pulse Reset, cargue el programa y ejecute de nuevo.";
+    e.faseError = 1;
+    return false;
+  }
+  var mVict = texto.match(/v[ií]ctima VPN\s+(\d+)/);
+  var mLibre = texto.match(/marco libre\s+(\d+)/);
+  var mMarco = texto.match(/marco\s+(\d+)\s*$/);
+  var reanudar = "F2";
+  if (e.textoIR) reanudar = "EX";
+  else if (e.ir) reanudar = "F5";
+  e.pf = {
+    va: (Number(e.mar) || 0) & 0x1FF,
+    vpn: Number(mVpn[1]),
+    escritura: reanudar === "EX" && e.sub >= 3 ? 1 : 0,
+    tipo: reanudar === "EX" ? "D" : "I",
+    pfn: mLibre ? Number(mLibre[1]) : (mMarco ? Number(mMarco[1]) : 0),
+    victima: mVict ? Number(mVict[1]) : -1,
+    dirty: 0
+  };
+  if (!e.reanudar || e.reanudar === "F1") e.reanudar = reanudar;
+  return true;
+}
+
 function simPasoPF2(e) {
+  if (!simAsegurarPf(e)) return "ERROR";
   var vpn = e.pf.victima;
   var pfn = e.pf.pfn;
   var i;
@@ -87,6 +116,7 @@ function simPasoPF2(e) {
 }
 
 function simPasoPF3(e) {
+  if (!simAsegurarPf(e)) return "ERROR";
   var vpn = e.pf.vpn;
   var pfn = e.pf.pfn;
   var i;
@@ -99,6 +129,7 @@ function simPasoPF3(e) {
 }
 
 function simPasoPF4(e) {
+  if (!simAsegurarPf(e)) return "ERROR";
   if (e.pf.victima >= 0) {
     var vieja = e.paginas[e.pf.victima];
     vieja.p = 0;

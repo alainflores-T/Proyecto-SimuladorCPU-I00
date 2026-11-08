@@ -20,7 +20,7 @@ var SIM_ESCALARES = [
   "aluA", "aluB", "aluOp", "aluR",
   "l1iH", "l1iM", "l1dRH", "l1dRM", "l1dWH", "l1dWM", "l2H", "l2M", "mant",
   "emDirI", "valDirI", "emDatI", "valDatI", "emDirE", "valDirE", "emDatE", "valDatE",
-  "rd", "wr", "ck", "io", "bits", "pasos"
+  "rd", "wr", "ck", "io", "bits", "pasos", "continuacion"
 ];
 
 var SIM_FILA_ESC = 3;
@@ -310,7 +310,29 @@ function simValorEscalar(e, nombre) {
   if (nombre === "wr") return e.buses.wr;
   if (nombre === "ck") return e.buses.ck;
   if (nombre === "io") return e.buses.io;
+  if (nombre === "continuacion") return simTextoContinuacion(e);
   return e[nombre];
+}
+
+function simTextoContinuacion(e) {
+  return JSON.stringify({
+    reanudar: e.reanudar || "",
+    pf: e.pf || null,
+    dec: e.dec || null,
+    registroFallos: e.registroFallos || []
+  });
+}
+
+function simLeerContinuacion(e, valor) {
+  var texto = valor === null || typeof valor === "undefined" ? "" : String(valor);
+  if (!texto || texto.charAt(0) !== "{") return;
+  var obj = null;
+  try { obj = JSON.parse(texto); } catch (err) { return; }
+  if (!obj || typeof obj !== "object") return;
+  if (typeof obj.reanudar === "string" && obj.reanudar) e.reanudar = obj.reanudar;
+  if (obj.pf && typeof obj.pf.vpn === "number") e.pf = obj.pf;
+  if (obj.dec && obj.dec.nombre) e.dec = obj.dec;
+  if (obj.registroFallos && typeof obj.registroFallos.length === "number") e.registroFallos = obj.registroFallos;
 }
 
 function simPonerEscalar(e, nombre, valor) {
@@ -335,6 +357,7 @@ function simPonerEscalar(e, nombre, valor) {
   else if (nombre === "wr") e.buses.wr = Number(valor) || 0;
   else if (nombre === "ck") e.buses.ck = Number(valor) || 0;
   else if (nombre === "io") e.buses.io = Number(valor) || 0;
+  else if (nombre === "continuacion") simLeerContinuacion(e, valor);
   else if (nombre === "stop") e.stop = Number(valor) ? 1 : 0;
   else if (typeof e[nombre] === "number") e[nombre] = Number(valor) || 0;
   else e[nombre] = valor === null || typeof valor === "undefined" ? "" : valor;
