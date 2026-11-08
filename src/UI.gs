@@ -228,20 +228,30 @@ function reiniciarCpu() {
  */
 function limpiarMaquina() {
   var sheet = uiMainSheet();
+  var fallos = [];
   uiTerminarEjecucion_();
   if (typeof reiniciarPresenciaPaginas === "function") {
-    try { reiniciarPresenciaPaginas(); } catch (ePag) {}
+    try { reiniciarPresenciaPaginas(); }
+    catch (ePag) { fallos.push("páginas: " + (ePag && ePag.message ? ePag.message : ePag)); }
   }
-  resetCPU();
+  try { resetCPU(); }
+  catch (eCpu) { fallos.push("CPU: " + (eCpu && eCpu.message ? eCpu.message : eCpu)); }
   if (typeof resetCaches === "function") {
-    try { resetCaches(); } catch (eCache) {}
+    try { resetCaches(); }
+    catch (eCache) { fallos.push("caché: " + (eCache && eCache.message ? eCache.message : eCache)); }
   }
   var layout = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(UI_LAYOUT_SHEET);
   if (layout) layout.getRange(UI_PAUSE_CELL).setValue("");
-  sheet.getRange(CPU_STATE).setValue("READY");
-  sheet.getRange(REG_PC).setValue("00H");
-  registrarLog(sheet, "CLEAR: RAM vacía y páginas ausentes. El swap del LOAD se conserva.");
-  return { ok: true, snapshot: uiSnapshot() };
+  try {
+    sheet.getRange(CPU_STATE).setValue("READY");
+    sheet.getRange(REG_PC).setValue("00H");
+  } catch (eEstado) { fallos.push("estado: " + (eEstado && eEstado.message ? eEstado.message : eEstado)); }
+  var cola = (typeof describirCola_ === "function") ? describirCola_() : "no leída";
+  var mensaje = fallos.length
+    ? "CLEAR no terminó. " + fallos.join(" | ")
+    : "CLEAR terminó. CPU READY, PC 00H, contadores de caché en cero. El programa cargado y el swap siguen. La cola no se borra: " + cola + ". Para dejarla en 0/8 use Vaciar cola, no edite F0H.";
+  registrarLog(sheet, mensaje);
+  return { ok: fallos.length === 0, reason: fallos.join(" | "), mensaje: mensaje, snapshot: uiSnapshot() };
 }
 
 function uiReset() { return reiniciarCpu(); }

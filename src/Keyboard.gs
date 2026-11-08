@@ -233,6 +233,19 @@ function kbdReadMeta() {
   return meta;
 }
 
+function describirCola_() {
+  var meta = kbdReadMeta();
+  var bytes = [];
+  var i;
+  if (typeof POLITICA_ES !== "undefined" && POLITICA_ES && typeof readPhysical === "function") {
+    for (i = 0; i < POLITICA_ES.teclado.bytes; i++) {
+      try { bytes.push(readPhysical(POLITICA_ES.teclado.inicio + i)); }
+      catch (eByte) { bytes.push("?"); }
+    }
+  }
+  return meta.count + "/8 head=" + meta.head + " tail=" + meta.tail + " F0=" + bytes.join(",");
+}
+
 function kbdSaveMeta(meta) {
   if (typeof PropertiesService === "undefined") return;
   PropertiesService.getDocumentProperties().setProperty(KBD_META_KEY, JSON.stringify({ head: meta.head, tail: meta.tail, count: meta.count }));

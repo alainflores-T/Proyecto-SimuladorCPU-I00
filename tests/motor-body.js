@@ -16,7 +16,7 @@ while (pasosVacios < 40 && String(hoja().getRange(CPU_STATE).getValue()) !== "HA
 }
 check("celdas vacías no llevan el PC a 62H", String(hoja().getRange(CPU_STATE).getValue()) === "HALT" && String(hoja().getRange(REG_PC).getValue()) !== "62H", "estado=" + hoja().getRange(CPU_STATE).getValue() + " pc=" + hoja().getRange(REG_PC).getValue() + " pasos=" + pasosVacios);
 var diag = diagnosticarSimulador();
-check("diagnóstico menciona LOAD", String(diag).indexOf("LOAD") !== -1, String(diag).split("\n")[0]);
+check("diagnóstico sin programa no pide otro clic", String(diag).indexOf("no hay programa virtual cargado") !== -1 && String(diag).indexOf("Cola ") !== -1, diag);
 var rechazoMarco = false;
 try { mapearPagina(0, 7); } catch (ePin) { rechazoMarco = String(ePin.message).indexOf("reservado") !== -1; }
 check("el marco 7 rechaza una página", rechazoMarco);
@@ -237,6 +237,15 @@ var vistaCola = uiSnapshot();
 check("tres letras en llamadas separadas salen en F0H y en el snapshot",
   sepA.ok && sepB.ok && sepC.ok && sepC.meta.count === 3 && readPhysical(0xF0) === 65 && readPhysical(0xF1) === 66 && vistaCola.teclado[0] === 65 && vistaCola.teclado[2] === 67,
   JSON.stringify(vistaCola.teclado));
+var claro = limpiarMaquina();
+var diagCola = diagnosticarSimulador();
+check("CLEAR termina e informa que la cola sigue",
+  claro.ok === true && String(claro.mensaje).indexOf("CLEAR terminó") !== -1 && String(claro.mensaje).indexOf("3/8") !== -1 && claro.snapshot.teclado[0] === 65,
+  claro.mensaje);
+check("CLEAR no borra F0H ni el contador", readPhysical(0xF0) === 65 && kbdReadMeta().count === 3);
+check("el diagnóstico muestra la ocupación de la cola", String(diagCola).indexOf("Cola 3/8") !== -1 && String(diagCola).indexOf("65") !== -1, diagCola);
+var trasClear = kbdEnqueueByte("D".charCodeAt(0));
+check("después de CLEAR se puede encolar la siguiente letra", trasClear.ok && trasClear.meta.count === 4 && readPhysical(0xF3) === 68, trasClear.reason || "");
 var nCola;
 for (nCola = 0; nCola < 5; nCola++) kbdEnqueueByte("Z".charCodeAt(0));
 var novena = kbdEnqueueByte("A".charCodeAt(0));

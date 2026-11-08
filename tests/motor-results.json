@@ -22,9 +22,9 @@
       "detail": "estado=HALT pc=00H pasos=2"
     },
     {
-      "name": "diagnóstico menciona LOAD",
+      "name": "diagnóstico sin programa no pide otro clic",
       "ok": true,
-      "detail": "Estado CPU: HALT"
+      "detail": "Estado CPU: HALT\nPC 00H IR  MAR 00H MDR \nAX  BX  CX  DX \nVirtual: no  Programa cargado: no\nCatálogo B1: Arithmetic AX..DX\nLímites de instrucción guardados: 0\nPausa Layout!E4: no\nCaché L1I 0/1 L2 0/1\nCola 0/8 head=0 tail=0 F0=,,,,,,,\nNotas Swap=SWAPVM-v1 TablaPaginas=TABLAPAGINAS-v1 Caches=CACHE-ESTRUCTURA-v1 Directory=sin nota\nLectura: no hay programa virtual cargado. La línea Cola es el contador interno, independiente de si alguien editó F0H."
     },
     {
       "name": "el marco 7 rechaza una página",
@@ -315,6 +315,26 @@
       "name": "tres letras en llamadas separadas salen en F0H y en el snapshot",
       "ok": true,
       "detail": "[65,66,67,0,0,0,0,0]"
+    },
+    {
+      "name": "CLEAR termina e informa que la cola sigue",
+      "ok": true,
+      "detail": "CLEAR terminó. CPU READY, PC 00H, contadores de caché en cero. El programa cargado y el swap siguen. La cola no se borra: 3/8 head=0 tail=3 F0=65,66,67,0,0,0,0,0. Para dejarla en 0/8 use Vaciar cola, no edite F0H."
+    },
+    {
+      "name": "CLEAR no borra F0H ni el contador",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "el diagnóstico muestra la ocupación de la cola",
+      "ok": true,
+      "detail": "Estado CPU: READY\nPC 00H IR 00H MAR 00H MDR 00H\nAX 00H BX 00H CX 00H DX 00H\nVirtual: sí  Programa cargado: sí\nCatálogo B1: Scattered accesses\nLímites de instrucción guardados: 10\nPausa Layout!E4: no\nCaché L1I 0/0 L2 0/0\nCola 3/8 head=0 tail=3 F0=65,66,67,0,0,0,0,0\nNotas Swap=SWAPVM-v1 TablaPaginas=TABLAPAGINAS-v1 Caches=CACHE-ESTRUCTURA-v1 Directory=sin nota\nLectura: programa cargado y PC 00H. CLEAR no vacía la cola; el número está en la línea Cola."
+    },
+    {
+      "name": "después de CLEAR se puede encolar la siguiente letra",
+      "ok": true,
+      "detail": ""
     },
     {
       "name": "la novena avisa cola llena y no cambia F0H",

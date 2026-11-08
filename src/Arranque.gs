@@ -111,14 +111,15 @@ function diagnosticarSimulador() {
     "Límites de instrucción guardados: " + nLim,
     "Pausa Layout!E4: " + (uiPaused() ? "PAUSE" : "no"),
     "Caché L1I " + (cache ? cache.l1i.hits + "/" + cache.l1i.misses : "—") + " L2 " + (cache ? cache.l2.hits + "/" + cache.l2.misses : "—"),
+    "Cola " + ((typeof describirCola_ === "function") ? describirCola_() : "no leída"),
     "Notas Swap=" + notaDe("Swap") + " TablaPaginas=" + notaDe("TablaPaginas") + " Caches=" + notaDe("Caches") + " Directory=" + notaDe("Directory")
   ];
   if (!virtual && !cargado) {
-    lineas.push("Lectura: RUN está en modo físico. Si PC avanzó y AX..DX siguen en 00H, recorrió celdas vacías. Pulse LOAD del programa Arithmetic AX..DX y luego RUN.");
+    lineas.push("Lectura: no hay programa virtual cargado. La línea Cola es el contador interno, independiente de si alguien editó F0H.");
   } else if (virtual && cargado && nLim === 0) {
-    lineas.push("Lectura: hay modo virtual pero el mapa de instrucciones está vacío. Vuelva a pulsar LOAD.");
+    lineas.push("Lectura: modo virtual con mapa de instrucciones vacío.");
   } else if (virtual && cargado) {
-    lineas.push("Lectura: el programa cargado debería ejecutarse desde 00H. Si PC no es 00H, pulse RESET y luego RUN.");
+    lineas.push("Lectura: programa cargado y PC " + celda(REG_PC) + ". CLEAR no vacía la cola; el número está en la línea Cola.");
   }
   var informe = lineas.join("\n");
   try {
