@@ -614,6 +614,7 @@ function simCorrer(e, opts) {
 }
 
 function simReset(e) {
+  var gen = (Number(e.visGen) || 0) + 1;
   var swap = e.swap.slice();
   var programa = e.programa;
   var politica = e.politica || "FIFO";
@@ -621,6 +622,7 @@ function simReset(e) {
   nuevo.swap = swap;
   nuevo.programa = programa;
   nuevo.politica = politica;
+  nuevo.visGen = gen;
   simReemplazarEstado(e, nuevo);
   return e;
 }

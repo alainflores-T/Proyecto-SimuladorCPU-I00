@@ -109,6 +109,7 @@ function simEstadoInicial() {
     pf: null,
     cacheNota: "",
     visSeq: 0,
+    visGen: 0,
     recs: [],
     ultimaVA: "",
     ultimaPA: "",
@@ -375,6 +376,7 @@ function simTextoContinuacion(e) {
     dec: e.dec || null,
     registroFallos: e.registroFallos || [],
     visSeq: e.visSeq || 0,
+    visGen: e.visGen || 0,
     recs: e.recs || []
   });
 }
@@ -390,7 +392,98 @@ function simLeerContinuacion(e, valor) {
   if (obj.dec && obj.dec.nombre) e.dec = obj.dec;
   if (obj.registroFallos && typeof obj.registroFallos.length === "number") e.registroFallos = obj.registroFallos;
   if (typeof obj.visSeq === "number") e.visSeq = obj.visSeq;
+  if (typeof obj.visGen === "number") e.visGen = obj.visGen;
   if (obj.recs && typeof obj.recs.length === "number") e.recs = obj.recs;
+}
+
+function simRutaPaso_(etiqueta, e) {
+  var et = String(etiqueta || "");
+  var ev = String(e.evento || "");
+  if (et === "F1" || et === "F4") return { id: "PC-MAR", desde: "pc", hasta: "mar", clase: "addr" };
+  if (et === "F3" || et === "F6") return { id: "MDR-IR", desde: "mdr", hasta: "ir", clase: "data" };
+  if (et === "PF2") return { id: "RAM-VM", desde: "ram", hasta: "vm", clase: "page" };
+  if (et === "PF3") return { id: "VM-RAM", desde: "vm", hasta: "ram", clase: "page" };
+  if (et === "PF4") return { id: "PT", desde: "pt", hasta: "vm", clase: "page" };
+  if (et === "F2" || et === "F5") {
+    if (String(e.cacheNota || "").indexOf("MISS") >= 0) return { id: "L1-L2-RAM", desde: "l1", hasta: "ram", clase: "addr" };
+    return { id: "CPU-RAM", desde: "mar", hasta: "ram", clase: "addr" };
+  }
+  if (ev.indexOf("ALU") === 0) return { id: "ALU", desde: "ax", hasta: "alu", clase: "data" };
+  if (ev.indexOf("OUT") === 0) return { id: "CPU-IO", desde: "mdr", hasta: "lcd", clase: "io" };
+  if (ev.indexOf("IN") === 0 || ev.indexOf("Tecla") === 0) return { id: "IO-CPU", desde: "kbd", hasta: "ax", clase: "io" };
+  if (ev.indexOf("ST") === 0) return { id: "CPU-RAM", desde: "mdr", hasta: "ram", clase: "data" };
+  if (ev.indexOf("LD") === 0) return { id: "RAM-CPU", desde: "ram", hasta: "mdr", clase: "data" };
+  return { id: "High-Z", desde: "", hasta: "", clase: "z" };
+}
+
+function simBytesLinea_(linea) {
+  var b = [];
+  var i;
+  for (i = 0; i < 8; i++) b.push(linea && linea.b ? (linea.b[i] & 255) : 0);
+  return { v: linea && linea.v ? 1 : 0, tag: linea && linea.tag ? linea.tag : 0, bytes: b };
+}
+
+function simSnapshotLab(e) {
+  var ram = [];
+  var swap = [];
+  var pt = [];
+  var kbd = [];
+  var i;
+  var p;
+  for (i = 0; i < 256; i++) ram.push(e.ram[i] & 255);
+  for (i = 0; i < 512; i++) swap.push(e.swap[i] & 255);
+  for (i = 0; i < 16; i++) {
+    p = e.paginas[i];
+    pt.push({ vpn: i, p: p.p ? 1 : 0, pfn: p.pfn, d: p.dirty ? 1 : 0, r: p.ref ? 1 : 0, fija: p.fija ? 1 : 0 });
+  }
+  for (i = 0; i < 8; i++) kbd.push(e.ram[0xF0 + i] & 255);
+  var lcd = "";
+  for (i = 0; i < 8; i++) {
+    var glifo = simGlifo(e.ram[0xF8 + i]);
+    lcd += glifo === "" ? " " : glifo;
+  }
+  var rec = e.recs && e.recs.length ? e.recs[e.recs.length - 1] : null;
+  return {
+    gen: e.visGen || 0,
+    seq: e.visSeq || 0,
+    fase: String(e.fase || ""),
+    evento: String(e.evento || ""),
+    texto: String(e.textoIR || ""),
+    regs: {
+      pc: simHex(e.pc & 0x1FF, 3), ax: simHex(e.ax & 255, 2), bx: simHex(e.bx & 255, 2),
+      cx: simHex(e.cx & 255, 2), dx: simHex(e.dx & 255, 2), ir: simHex(e.ir & 0xFFFF, 4),
+      mar: simHex(e.mar & 0x1FF, 3), mdr: simHex(e.mdr & 255, 2)
+    },
+    alu: { a: e.aluA & 255, b: e.aluB & 255, op: String(e.aluOp || ""), r: e.aluR & 255, zf: e.zf ? 1 : 0, cf: e.cf ? 1 : 0, sf: e.sf ? 1 : 0 },
+    control: { rd: e.buses.rd ? 1 : 0, wr: e.buses.wr ? 1 : 0, ck: e.buses.ck ? 1 : 0, io: e.buses.io ? 1 : 0 },
+    buses: {
+      internoDir: simLineaVisual_(e.buses.dirInt),
+      internoDat: simLineaVisual_(e.buses.datInt),
+      memoriaDir: simLineaVisual_(e.buses.dirExt),
+      memoriaDat: simLineaVisual_(e.buses.datExt)
+    },
+    bits: String(e.bits || ""),
+    ram: ram,
+    swap: swap,
+    pt: pt,
+    l1i: simBytesLinea_(e.l1i),
+    l1d: simBytesLinea_(e.l1d),
+    l2: [simBytesLinea_(e.l2[0]), simBytesLinea_(e.l2[1]), simBytesLinea_(e.l2[2]), simBytesLinea_(e.l2[3])],
+    rates: {
+      l1i: simTextoTasa(e.cont.l1iH, e.cont.l1iM),
+      l1d: simTextoTasa(e.cont.l1dRH + e.cont.l1dWH, e.cont.l1dRM + e.cont.l1dWM),
+      l2: simTextoTasa(e.cont.l2H, e.cont.l2M)
+    },
+    kbd: kbd,
+    kbdHead: e.kbdHead || 0,
+    kbdTail: e.kbdTail || 0,
+    kbdCount: e.kbdCount || 0,
+    lcd: lcd,
+    marca: { va: e.ultimaVA === "" || e.ultimaVA === null ? "" : e.ultimaVA, pa: e.ultimaPA === "" || e.ultimaPA === null ? "" : e.ultimaPA },
+    rec: rec,
+    aviso: String(e.banner || ""),
+    cache: String(e.cacheNota || "")
+  };
 }
 
 function simRegistrarVista_(e, etiqueta) {
@@ -417,7 +510,8 @@ function simRegistrarVista_(e, etiqueta) {
     receptor: String(e.evento || ""),
     valor: valor,
     cache: String(e.cacheNota || ""),
-    aviso: String(e.banner || "")
+    aviso: String(e.banner || ""),
+    ruta: simRutaPaso_(etiqueta, e)
   });
   if (e.recs.length > 24) e.recs = e.recs.slice(e.recs.length - 24);
 }

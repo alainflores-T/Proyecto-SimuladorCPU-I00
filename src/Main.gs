@@ -434,6 +434,18 @@ function simPintarPanel_(ss) {
     log.push(fl);
   }
   simPegar_(hoja, 50, 10, log);
+  var vm = [];
+  var mitad;
+  for (f = 0; f < 16; f++) {
+    var baja = ["VPN" + f + " +00"];
+    var alta = ["VPN" + f + " +10"];
+    for (c = 0; c < 16; c++) baja.push("=_ESTADO!" + simColumna_(c + 1) + (SIM_FILA_SWAP + f));
+    for (c = 0; c < 16; c++) alta.push("=_ESTADO!" + simColumna_(c + 17) + (SIM_FILA_SWAP + f));
+    vm.push(baja);
+    vm.push(alta);
+  }
+  simPegar_(hoja, 64, 10, vm);
+  hoja.getRange(64, 10, 32, 17).setBackground("#10243f").setFontColor("#d6e8ff").setFontSize(9);
 
   simEstiloTitulo_(hoja.getRange(1, 1, 1, 8));
   hoja.getRange(2, 1, 1, 7).setBackground("#263238").setFontColor("#FFFFFF").setFontWeight("bold");
@@ -705,8 +717,8 @@ function simPintarProgramas_(ss) {
 
 function simBotonesPrograma_(hoja) {
   if (!hoja) return;
-  if (String(hoja.getRange(3, 1).getValue()) === "Traer") return;
-  simPegar_(hoja, 3, 1, [["Traer", "", "Ensamblar", "", "Cargar editor"]]);
+  if (String(hoja.getRange(3, 1).getValue()) === "P1") return;
+  simPegar_(hoja, 3, 1, [["P1", "", "P2", "", "P3"]]);
   hoja.getRange(3, 2).insertCheckboxes();
   hoja.getRange(3, 4).insertCheckboxes();
   hoja.getRange(3, 6).insertCheckboxes();
@@ -1017,11 +1029,77 @@ function simPaginaLab_(evento) {
 }
 
 function simAbrirLab() {
+  var salida = HtmlService.createHtmlOutputFromFile("Laboratorio").setWidth(1280).setHeight(860);
+  SpreadsheetApp.getUi().showModelessDialog(salida, "Laboratorio");
+}
+
+function simLabEstado() {
   var ss = simLibro_();
   var e = simLeerEstado_(ss);
-  var html = simPaginaLab_(simEventoVisual(e));
-  var salida = HtmlService.createHtmlOutput(html).setWidth(1100).setHeight(640);
-  SpreadsheetApp.getUi().showModelessDialog(salida, "Laboratorio");
+  var delay = 280;
+  var panel = ss.getSheetByName("PANEL");
+  if (panel) {
+    var n = Number(panel.getRange(3, 5).getValue());
+    if (n >= 40 && n <= 2000) delay = n;
+  }
+  var rec = e.recs && e.recs.length ? e.recs[e.recs.length - 1] : null;
+  return { gen: e.visGen || 0, seq: e.visSeq || 0, delay: delay, fase: e.fase, pausa: e.stop ? 1 : 0, rec: rec, snap: simSnapshotLab(e) };
+}
+
+function simLabPaso() {
+  var ss = simLibro_();
+  return simConCandado_(function () {
+    var e = simLeerEstado_(ss);
+    if (e.fase === "HALT" || e.fase === "ERROR") {
+      return { gen: e.visGen || 0, seq: e.visSeq || 0, fase: e.fase, pausa: 0, rec: null, snap: simSnapshotLab(e) };
+    }
+    if (simLeerStop_(ss) && e.fase !== "STOP") {
+      return { gen: e.visGen || 0, seq: e.visSeq || 0, fase: e.fase, pausa: 1, rec: null, snap: simSnapshotLab(e) };
+    }
+    var antes = e.visSeq || 0;
+    e.stop = 0;
+    simMicroPaso(e);
+    simEscribirEstado_(ss, e);
+    var rec = e.recs && e.recs.length && e.recs[e.recs.length - 1].seq !== antes ? e.recs[e.recs.length - 1] : null;
+    return { gen: e.visGen || 0, seq: e.visSeq || 0, fase: e.fase, pausa: 0, error: e.error || "", rec: rec, snap: simSnapshotLab(e) };
+  });
+}
+
+function simLabReset() {
+  var ss = simLibro_();
+  return simConCandado_(function () {
+    var e = simLeerEstado_(ss);
+    simReset(e);
+    simEscribirEstado_(ss, e);
+    return { gen: e.visGen || 0, seq: 0, snap: simSnapshotLab(e) };
+  });
+}
+
+function simCargarFuente(id) {
+  var ss = simLibro_();
+  var prog = simBuscarPrograma(id);
+  if (!prog) throw new Error("Elija P1, P2 o P3.");
+  var hoja = simHoja_(ss, "PROGRAMAS");
+  hoja.getRange(1, 2).setValue(prog.id);
+  var filas = [];
+  var i;
+  for (i = 0; i < 40; i++) {
+    if (i < prog.lineas.length) {
+      var p = simParseLinea(prog.lineas[i]);
+      var com = "";
+      var semi = prog.lineas[i].indexOf(";");
+      if (semi >= 0) com = prog.lineas[i].slice(semi + 1).trim();
+      filas.push([p.etiqueta, p.mnemonico ? (p.mnemonico + (p.resto ? " " + p.resto : "")) : "", com]);
+    } else filas.push(["", "", ""]);
+  }
+  simPegar_(hoja, 5, 2, filas);
+  return simConCandado_(function () {
+    var e = simLeerEstado_(ss);
+    var r = simCargarCatalogo(e, prog.id);
+    if (!r.ok) return r.errores.join("\n");
+    simEscribirEstado_(ss, e);
+    return prog.id;
+  });
 }
 
 function simPaqueteVisual() {
@@ -1061,9 +1139,9 @@ function onEdit(e) {
   var col = e.range.getColumn();
   if (hoja === "PROGRAMAS" && fila === 3) {
     e.range.setValue(false);
-    if (col === 2) simTraerPrograma();
-    else if (col === 4) simEnsamblarHoja();
-    else if (col === 6) simCargarHoja();
+    if (col === 2) simCargarFuente("P1");
+    else if (col === 4) simCargarFuente("P2");
+    else if (col === 6) simCargarFuente("P3");
     return;
   }
   if (hoja === "PERIFERICOS" && (fila === 4 || fila === 6 || fila === 8)) {

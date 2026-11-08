@@ -406,7 +406,36 @@ function simProbarTodo() {
     simAfirmar(fallos, simEsTecla_("Espacio") && simEsTecla_("Borrar") && !simEsTecla_("HOLA"), "el teclado físico acepta una tecla, no un texto");
   });
 
-  if (total !== 19) fallos.push("se esperaban 19 casos y se ejecutaron " + total);
+  caso("20 foto del laboratorio", function () {
+    var e = simEstadoInicial();
+    simCargarCatalogo(e, "P3");
+    simHastaFin(e);
+    var foto = simSnapshotLab(e);
+    simAfirmar(fallos, foto.ram.length === 256 && foto.swap.length === 512, "la foto trae 256 y 512 bytes");
+    simAfirmar(fallos, foto.pt.length === 16 && foto.l1i.bytes.length === 8 && foto.l1d.bytes.length === 8 && foto.l2.length === 4 && foto.l2[0].bytes.length === 8, "tabla, L1 y L2 tienen su tamaño");
+    simAfirmar(fallos, foto.kbd.length === 8 && foto.lcd.length === 8, "cola y LCD ocupan 8");
+    var vioPF = false;
+    var vioWB = false;
+    var i;
+    for (i = 0; i < e.recs.length; i++) {
+      if (e.recs[i].ruta && (e.recs[i].ruta.id === "RAM-VM" || e.recs[i].ruta.id === "VM-RAM")) vioPF = true;
+      if (e.recs[i].fase === "PF2") vioWB = true;
+    }
+    simAfirmar(fallos, vioPF, "un fallo de página mueve un bloque entre RAM y VM");
+    simAfirmar(fallos, e.ax === 0x0A, "P3 termina con AX 0AH, vino " + e.ax);
+    var p1 = simCatalogo()[0];
+    var p2 = simCatalogo()[1];
+    simAfirmar(fallos, p1.lineas.length >= 8 && p2.lineas.join(" ").indexOf("IN") >= 0 && simCatalogo()[2].lineas.join("\n").indexOf("DB") >= 0, "P1 P2 y P3 traen código y datos");
+    var eco = simEstadoInicial();
+    simCargarCatalogo(eco, "P2");
+    simTeclear(eco, "A");
+    simHastaFin(eco);
+    var lcd = simSnapshotLab(eco);
+    simAfirmar(fallos, eco.ram[0xF0] === 0 && lcd.lcd.indexOf("A") === 0, "IN lee la cola real y OUT la pinta en el LCD");
+    simAfirmar(fallos, e.writebacks === 1, "P3 escribe la víctima sucia una vez");
+  });
+
+  if (total !== 20) fallos.push("se esperaban 20 casos y se ejecutaron " + total);
   var lineas = simInformePruebas_(total, fallos);
   if (fallos.length) throw new Error(lineas.join("\n"));
   return { ok: true, total: total, fallos: fallos };
