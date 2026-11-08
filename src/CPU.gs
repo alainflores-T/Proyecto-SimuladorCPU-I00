@@ -498,13 +498,55 @@ function simAnotar(e, etiqueta) {
   if (e.trace.length > SIM_TRAZA_MAX) e.trace.shift();
 }
 
+function simFaseTras_(hecha, e) {
+  if (hecha === "F1") return "F2";
+  if (hecha === "F2") return "F3";
+  if (hecha === "F3") return "F4";
+  if (hecha === "F4") return "F5";
+  if (hecha === "F5") return "F6";
+  if (hecha === "F6") return "DECODE";
+  if (hecha === "DECODE") return "EX";
+  if (hecha === "PF2") return "PF3";
+  if (hecha === "PF3") return "PF4";
+  if (hecha === "PF1") {
+    if (!e.pf || typeof e.pf.vpn !== "number" || typeof e.pf.dirty === "undefined") return "";
+    return e.pf.dirty ? "PF2" : "PF3";
+  }
+  if (hecha === "PF4") {
+    if (e.reanudar === "F2" || e.reanudar === "F5" || e.reanudar === "EX") return e.reanudar;
+  }
+  return "";
+}
+
+function simRecuperarFasePausa_(e) {
+  if (e.fase !== "STOP") return { ok: true, fase: e.fase };
+  var i = e.trace.length - 1;
+  var hecha = "";
+  while (i >= 0) {
+    var et = String(e.trace[i][1] || "");
+    if (et !== "STOP" && et !== "PAUSA") { hecha = et; break; }
+    i--;
+  }
+  var siguiente = simFaseTras_(hecha, e);
+  if (!siguiente) {
+    return {
+      ok: false,
+      error: "Pausa antigua sin microfase recuperable. Última completada: " + (hecha || "ninguna") + ". El CPU no se modificó. Cargar de cero solo si quiere reiniciar la prueba."
+    };
+  }
+  e.fase = siguiente;
+  e.evento = "Reanuda en " + siguiente;
+  return { ok: true, fase: siguiente };
+}
+
 function simMicroPaso(e) {
   if (e.fase === "HALT" || e.fase === "ERROR") return e;
-  if (e.stop) {
-    e.fase = "STOP";
-    e.evento = "STOP";
-    simAnotar(e, "STOP");
-    return e;
+  if (e.fase === "STOP") {
+    var rec = simRecuperarFasePausa_(e);
+    if (!rec.ok) {
+      e.evento = rec.error;
+      return e;
+    }
   }
   simPrepararPaso(e);
   var etiqueta = e.fase;
@@ -554,12 +596,8 @@ function simCorrer(e, opts) {
       e.evento = "TOPE_TIEMPO";
       break;
     }
-    if (e.stop) {
-      simMicroPaso(e);
-      n++;
-      break;
-    }
-    if (e.fase === "HALT" || e.fase === "ERROR" || e.fase === "STOP") break;
+    if (e.stop && e.fase !== "STOP") break;
+    if (e.fase === "HALT" || e.fase === "ERROR") break;
     simMicroPaso(e);
     n++;
     if (opts.cada) opts.cada(e, n);

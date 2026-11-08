@@ -246,7 +246,11 @@ function simProbarTodo() {
       ahora: function () { return 0; },
       cada: function (est, n) { if (n === 3) { pcTras = est.pc; est.stop = 1; } }
     });
-    simAfirmar(fallos, s.fase === "STOP" && s.pc === pcTras, "Stop no sigue ejecutando y conserva el PC");
+    var fasePausa = s.fase;
+    var trazaPausa = s.trace.length;
+    simAfirmar(fallos, s.stop === 1 && s.fase !== "STOP" && s.pc === pcTras, "Stop conserva la microfase y el PC");
+    simCorrer(s, { maxPasos: 10, ahora: function () { return 0; } });
+    simAfirmar(fallos, s.fase === fasePausa && s.pc === pcTras && s.trace.length === trazaPausa, "otra corrida con la pausa puesta no avanza");
     var lru = simEstadoInicial();
     lru.politica = "LRU";
     simCargarTexto(lru, "LD AX, [20H]\nLD AX, [40H]\nLD AX, [60H]\nLD AX, [80H]\nLD AX, [A0H]\nLD AX, [C0H]\nLD AX, [20H]\nLD AX, [100H]\nHLT\n", "lru");
@@ -286,6 +290,61 @@ function simProbarTodo() {
     simAfirmar(fallos, rechazo, "el script original se rechaza");
   });
 
+  caso("17 pausa entre grupos y reanuda", function () {
+    var e = simEstadoInicial();
+    simCargarTexto(e, "MOV AX, 01H\nMOV BX, 02H\nHLT\n", "grupos");
+    var marca = null;
+    var grupos = 0;
+    while (grupos < 30 && e.fase !== "HALT" && e.fase !== "ERROR") {
+      if (e.stop && e.fase !== "STOP") break;
+      var i = 0;
+      while (i < 4 && e.fase !== "HALT" && e.fase !== "ERROR" && e.fase !== "STOP") {
+        simMicroPaso(e);
+        i++;
+      }
+      grupos++;
+      if (grupos === 1) marca = { fase: e.fase, pc: e.pc, ax: e.ax, n: e.trace.length, sub: e.sub };
+      if (grupos === 1) e.stop = 1;
+    }
+    simAfirmar(fallos, !!marca && e.stop === 1 && e.fase === marca.fase && e.pc === marca.pc && e.ax === marca.ax && e.trace.length === marca.n, "el grupo siguiente no ejecuta ni borra la fase");
+    e.stop = 0;
+    simMicroPaso(e);
+    simAfirmar(fallos, e.fase !== "STOP" && e.trace.length === marca.n + 1, "Step reanuda un micro-paso real");
+    simHastaFin(e);
+    simAfirmar(fallos, e.fase === "HALT" && e.ax === 1 && e.bx === 2, "Run reanuda hasta HLT");
+
+    var vieja = simEstadoInicial();
+    simCargarTexto(vieja, "MOV AX, 01H\nHLT\n", "vieja");
+    simMicroPaso(vieja);
+    vieja.fase = "STOP";
+    vieja.evento = "STOP";
+    vieja.stop = 1;
+    simAnotar(vieja, "STOP");
+    var ax = vieja.ax;
+    var rec = simRecuperarFasePausa_(vieja);
+    simAfirmar(fallos, rec.ok === true && vieja.fase === "F2" && vieja.ax === ax, "una pausa F1 se recupera como F2 sin tocar AX");
+    vieja.stop = 0;
+    simHastaFin(vieja);
+    simAfirmar(fallos, vieja.fase === "HALT" && vieja.ax === 1, "la pausa recuperada llega a HLT");
+
+    var ex = simEstadoInicial();
+    simCargarTexto(ex, "MOV AX, 01H\nHLT\n", "ex");
+    var p = 0;
+    while (p < 40 && (!ex.trace.length || ex.trace[ex.trace.length - 1][1] !== "EX")) {
+      simMicroPaso(ex);
+      p++;
+    }
+    simAfirmar(fallos, ex.trace.length && ex.trace[ex.trace.length - 1][1] === "EX", "hay un EX completado en la traza");
+    var axEx = ex.ax;
+    var pcEx = ex.pc;
+    ex.fase = "STOP";
+    ex.evento = "STOP";
+    simAnotar(ex, "STOP");
+    simMicroPaso(ex);
+    simAfirmar(fallos, ex.fase === "STOP" && ex.ax === axEx && ex.pc === pcEx, "EX no se reemplaza por una fase inventada");
+    simAfirmar(fallos, String(ex.evento).indexOf("sin microfase recuperable") >= 0, "el aviso dice que el CPU no se modificó");
+  });
+
   caso("16 P1 reanuda tras guardar cada micro-paso", function () {
     var e = simEstadoInicial();
     simAfirmar(fallos, simCargarCatalogo(e, "P1").ok === true, "P1 carga");
@@ -314,7 +373,7 @@ function simProbarTodo() {
     simAfirmar(fallos, e.ax === 0x0C && e.bx === 0x04 && e.cx === 0 && e.dx === 0x04 && e.zf === 1, "los registros de P1 sobreviven al guardado");
   });
 
-  if (total !== 16) fallos.push("se esperaban 16 casos y se ejecutaron " + total);
+  if (total !== 17) fallos.push("se esperaban 17 casos y se ejecutaron " + total);
   var lineas = simInformePruebas_(total, fallos);
   if (fallos.length) throw new Error(lineas.join("\n"));
   return { ok: true, total: total, fallos: fallos };

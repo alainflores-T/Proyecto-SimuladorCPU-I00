@@ -322,7 +322,7 @@ function simPintarPanel_(ss) {
     ["Valor 0-255", recordar.valor],
     ["Editar memoria", ""]
   ]);
-  hoja.getRange(6, 3).setValue("Cada 20 pasos; Stop entre grupos.").setWrap(true);
+  hoja.getRange(6, 3).setValue("Cada 20 pasos. Stop pausa; Run sigue.").setWrap(true);
   hoja.getRange(10, 3).setValue("Catálogo. No toca el editor.").setWrap(true);
   hoja.getRange(11, 3).setValue("ENTER o texto de hasta 8.").setWrap(true);
   var casillas = [5, 6, 7, 8, 10, 12, 13, 16];
@@ -826,7 +826,8 @@ function simStep() {
   var ss = simLibro_();
   simConCandado_(function () {
     var e = simLeerEstado_(ss);
-    if (simLeerStop_(ss)) e.stop = 1;
+    if (e.fase === "HALT" || e.fase === "ERROR") return;
+    e.stop = 0;
     simMicroPaso(e);
     simEscribirEstado_(ss, e);
   });
@@ -838,22 +839,29 @@ function simRun() {
   var n = 0;
   var seguir = true;
   var lote = 20;
+  if (simLeerStop_(ss)) {
+    ss.getSheetByName("_ESTADO").getRange(simFilaEscalar("stop"), 2).setValue(0);
+  }
   while (seguir && n < SIM_RUN_PASOS && (Date.now() - t0) < SIM_RUN_MS) {
     simConCandado_(function () {
-      var e = simLeerEstado_(ss);
-      if (e.fase === "HALT" || e.fase === "ERROR" || e.fase === "STOP") {
+      if (simLeerStop_(ss)) {
         seguir = false;
         return;
       }
-      if (simLeerStop_(ss)) e.stop = 1;
+      var e = simLeerEstado_(ss);
+      if (e.fase === "HALT" || e.fase === "ERROR") {
+        seguir = false;
+        return;
+      }
+      e.stop = 0;
       var k = 0;
-      while (seguir && k < lote && n < SIM_RUN_PASOS) {
-        if (e.stop && k > 0) break;
+      while (k < lote && n < SIM_RUN_PASOS) {
         simMicroPaso(e);
         n++;
         k++;
-        if (e.fase === "HALT" || e.fase === "ERROR" || e.fase === "STOP" || e.stop) seguir = false;
+        if (e.fase === "HALT" || e.fase === "ERROR" || e.fase === "STOP") break;
       }
+      if (e.fase === "HALT" || e.fase === "ERROR" || e.fase === "STOP") seguir = false;
       simEscribirEstado_(ss, e);
     });
     if (SpreadsheetApp.flush) SpreadsheetApp.flush();
