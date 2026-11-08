@@ -15,6 +15,18 @@ function simHastaFin(e) {
   return simCorrer(e, { maxPasos: 800, maxMs: 999999, ahora: function () { return 0; } });
 }
 
+function simInformePruebas_(total, fallos) {
+  var lineas = ["PRUEBAS casos=" + total + " fallos=" + fallos.length];
+  var i;
+  for (i = 0; i < fallos.length; i++) lineas.push("FALLO " + (i + 1) + ": " + fallos[i]);
+  if (!fallos.length) lineas.push("OK");
+  for (i = 0; i < lineas.length; i++) {
+    if (typeof console !== "undefined" && console.log) console.log(lineas[i]);
+    if (typeof Logger !== "undefined" && Logger.log) Logger.log(lineas[i]);
+  }
+  return lineas;
+}
+
 function simProbarTodo() {
   var fallos = [];
   var total = 0;
@@ -23,7 +35,10 @@ function simProbarTodo() {
     var antes = fallos.length;
     try { fn(); }
     catch (err) { fallos.push(nombre + " excepción " + (err && err.message ? err.message : err)); }
-    if (fallos.length === antes) return;
+    var i;
+    for (i = antes; i < fallos.length; i++) {
+      if (String(fallos[i]).indexOf(nombre) !== 0) fallos[i] = nombre + ": " + fallos[i];
+    }
   }
 
   caso("1 errores de ensamblador", function () {
@@ -265,5 +280,8 @@ function simProbarTodo() {
     simAfirmar(fallos, rechazo, "el script original se rechaza");
   });
 
-  return { ok: fallos.length === 0, total: total, fallos: fallos };
+  if (total !== 15) fallos.push("se esperaban 15 casos y se ejecutaron " + total);
+  var lineas = simInformePruebas_(total, fallos);
+  if (fallos.length) throw new Error(lineas.join("\n"));
+  return { ok: true, total: total, fallos: fallos };
 }
