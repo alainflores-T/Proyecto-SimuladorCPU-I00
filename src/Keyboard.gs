@@ -292,14 +292,20 @@ function kbdEnqueueByte(byte) {
   var read = ioReadBytes(gate.map.keyboard);
   if (!read.ok) return read;
   var meta = kbdReadMeta();
-  if (meta.count >= gate.map.keyboard.bytes) return { ok: false, reason: "Keyboard queue is full." };
+  if (meta.count >= gate.map.keyboard.bytes) {
+    return {
+      ok: false,
+      reason: "La cola está llena (" + meta.count + "/8) en su contador interno. Borrar F0H a mano no lo reinicia. Use Vaciar cola.",
+      meta: meta
+    };
+  }
   var slots = read.bytes.slice();
   slots[meta.tail] = byte;
   var wrote = ioWriteBytes(gate.map.keyboard, slots);
   if (!wrote.ok) return wrote;
   var next = { head: meta.head, tail: (meta.tail + 1) % gate.map.keyboard.bytes, count: meta.count + 1 };
   kbdSaveMeta(next);
-  return { ok: true, meta: next, byte: byte };
+  return { ok: true, meta: next, byte: byte, mensaje: "Encolado. Ocupadas " + next.count + "/8." };
 }
 
 function kbdSendKey() {

@@ -228,3 +228,34 @@ check("HEX MOV reg", fila("MOV (reg)") === "004800H", fila("MOV (reg)"));
 check("HEX IN", fila("IN") === hexDeLista(["IO", "En_KBD", "Ld_AX"]));
 check("HEX OUT", fila("OUT") === hexDeLista(["IO", "Mem_W", "En_AX", "Ld_LCD"]));
 check("la tabla tiene IN y OUT", fila("IN") !== "" && fila("OUT") !== "");
+
+kbdReset();
+var sepA = kbdEnqueueByte("A".charCodeAt(0));
+var sepB = kbdEnqueueByte("B".charCodeAt(0));
+var sepC = kbdEnqueueByte("C".charCodeAt(0));
+var vistaCola = uiSnapshot();
+check("tres letras en llamadas separadas salen en F0H y en el snapshot",
+  sepA.ok && sepB.ok && sepC.ok && sepC.meta.count === 3 && readPhysical(0xF0) === 65 && readPhysical(0xF1) === 66 && vistaCola.teclado[0] === 65 && vistaCola.teclado[2] === 67,
+  JSON.stringify(vistaCola.teclado));
+var nCola;
+for (nCola = 0; nCola < 5; nCola++) kbdEnqueueByte("Z".charCodeAt(0));
+var novena = kbdEnqueueByte("A".charCodeAt(0));
+check("la novena avisa cola llena y no cambia F0H", novena.ok === false && String(novena.reason).indexOf("llena") !== -1 && readPhysical(0xF0) === 65, novena.reason);
+var z;
+for (z = 0; z < 8; z++) writePhysical(0xF0 + z, 0);
+var trasCeldas = kbdEnqueueByte("A".charCodeAt(0));
+check("poner F0H en cero a mano no reinicia el contador", trasCeldas.ok === false && kbdReadMeta().count === 8 && readPhysical(0xF0) === 0, "count=" + kbdReadMeta().count);
+var oficial = kbdReset();
+check("Vaciar cola sincroniza RAM y contador", oficial.ok && kbdReadMeta().count === 0 && readPhysical(0xF0) === 0 && readPhysical(0xF7) === 0);
+var cargaEco = cargar("Keyboard to LCD");
+var unaA = panelEnviarTecla("A");
+check("tras vaciar y LOAD entra una A y el snapshot la muestra",
+  cargaEco.ok && unaA.ok && unaA.meta.count === 1 && readPhysical(0xF0) === 65 && unaA.snapshot.teclado[0] === 65 && String(unaA.mensaje).indexOf("1/8") !== -1,
+  unaA.mensaje);
+reiniciarCpu();
+var finUna = correrHastaHalt(120);
+var lcdUna = esRamLeerRegion(POLITICA_ES.lcd);
+check("el eco con una A escribe 65 en F8H y ceros después",
+  String(hoja().getRange(CPU_STATE).getValue()) === "HALT" && lcdUna.ok && lcdUna.bytes[0] === 65 && lcdUna.bytes[1] === 0 && readPhysical(0xF8) === 65,
+  JSON.stringify(lcdUna.bytes) + " fin=" + (finUna && finUna.estado));
+check("siguen 256 B y el marco 7 no recibe páginas", POLITICA_ES.ramFisica === 256 && presentes() <= 7 && pfnUsados().indexOf("7") === -1, "presentes=" + presentes());

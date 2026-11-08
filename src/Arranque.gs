@@ -30,6 +30,7 @@ function onOpen() {
     SpreadsheetApp.getUi().createMenu("Simulador")
       .addItem("Abrir panel", "mostrarPanelSimulador")
       .addItem("Diagnóstico (no borra nada)", "diagnosticarSimulador")
+      .addItem("Vaciar cola (F0H y contador)", "panelVaciarCola")
       .addItem("Preparar hojas (no borra datos ajenos)", "prepararSimulador")
       .addItem("Cargar programa seleccionado", "loadSelectedProgram")
       .addItem("Step", "uiStep")
@@ -148,9 +149,18 @@ function cargarProgramaPorNombre(nombre) {
 
 function panelEnviarTecla(texto) {
   var parsed = kbdKeyCode(texto);
-  if (!parsed.ok) return parsed;
+  if (!parsed.ok) return { ok: false, reason: parsed.reason, mensaje: parsed.reason, snapshot: uiSnapshot() };
   var result = kbdEnqueueByte(parsed.byte);
   result.snapshot = uiSnapshot();
+  if (result.ok) result.mensaje = "Encolado " + kbdText(parsed.byte) + ". Ocupadas " + result.meta.count + "/8.";
+  else result.mensaje = result.reason;
+  return result;
+}
+
+function panelVaciarCola() {
+  var result = kbdReset();
+  result.snapshot = uiSnapshot();
+  result.mensaje = result.ok ? "Cola vaciada: F0H-F7H y el contador quedaron en 0/8." : result.reason;
   return result;
 }
 

@@ -58,7 +58,8 @@
   </div>
   <div class="row">
     <input id="tecla" maxlength="8" placeholder="Tecla o ENTER">
-    <button onclick="enviar()">A la cola</button>
+    <button id="btnCola" onclick="enviar()">A la cola</button>
+    <button class="ghost" onclick="vaciarCola()">Vaciar cola</button>
   </div>
   <div id="estado">Sin snapshot.</div>
   <section>
@@ -129,7 +130,11 @@
       document.getElementById("lcd").textContent = lcd.map(glyph).join("");
       document.getElementById("teclado").textContent = "Cola F0H: " + (s.teclado || []).join(" ");
     }
-    function fail(err) { corriendo = false; document.getElementById("estado").textContent = String(err && err.message ? err.message : err); }
+    function fail(err) {
+      corriendo = false;
+      liberarCola();
+      document.getElementById("estado").textContent = String(err && err.message ? err.message : err);
+    }
     function remoto(nombre, arg, ok) {
       if (typeof google === "undefined" || !google.script || !google.script.run) {
         document.getElementById("estado").textContent = "Sin Apps Script: esta vista no es la hoja.";
@@ -139,10 +144,17 @@
       if (arg === undefined) run[nombre]();
       else run[nombre](arg);
     }
+    var enviandoCola = false;
     function tomar(r) {
       if (r && r.snapshot) pintar(r.snapshot);
-      if (r && r.ok === false && r.reason) fail(r.reason);
+      if (r && r.mensaje) document.getElementById("estado").textContent = r.mensaje;
+      else if (r && r.ok === false && r.reason) fail(r.reason);
       else if (r && r.reason && !r.snapshot) fail(r.reason);
+    }
+    function liberarCola() {
+      enviandoCola = false;
+      var boton = document.getElementById("btnCola");
+      if (boton) boton.disabled = false;
     }
     function diagnostico() {
       remoto("diagnosticarSimulador", undefined, function (texto) {
@@ -155,7 +167,19 @@
     function clearMachine() { corriendo = false; token = null; remoto("uiClear", undefined, tomar); }
     function pause() { corriendo = false; remoto("uiPause", undefined, function () {}); }
     function politica(nombre) { remoto("panelPolitica", nombre, tomar); }
-    function enviar() { remoto("panelEnviarTecla", document.getElementById("tecla").value || "A", tomar); }
+    function enviar() {
+      if (enviandoCola) return;
+      enviandoCola = true;
+      var boton = document.getElementById("btnCola");
+      if (boton) boton.disabled = true;
+      remoto("panelEnviarTecla", document.getElementById("tecla").value || "A", function (r) {
+        liberarCola();
+        tomar(r);
+      });
+    }
+    function vaciarCola() {
+      remoto("panelVaciarCola", undefined, tomar);
+    }
     function lote() {
       if (!corriendo || !token) return;
       remoto("uiLoteRun", token, function (r) {

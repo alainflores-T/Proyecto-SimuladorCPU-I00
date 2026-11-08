@@ -317,9 +317,9 @@ function uiSnapshotDatos_() {
   }
   var teclado = null;
   var lcd = null;
-  if (typeof esRamLeerRegion === "function" && typeof esRamLista === "function" && esRamLista()) {
-    teclado = esRamLeerRegion({ start: 0, bytes: 8 });
-    lcd = esRamLeerRegion({ start: 8, bytes: 8 });
+  if (typeof esRamLeerRegion === "function" && typeof POLITICA_ES !== "undefined" && POLITICA_ES && POLITICA_ES.teclado) {
+    teclado = esRamLeerRegion(POLITICA_ES.teclado);
+    lcd = esRamLeerRegion(POLITICA_ES.lcd);
   }
   var eventos = (cache && cache.eventos) ? cache.eventos.slice(-8) : [];
   return {

@@ -84,6 +84,17 @@ function loaderIoOptInOn() {
   return PropertiesService.getDocumentProperties().getProperty(key) === "physical-test";
 }
 
+function reiniciarPantallaAlCargar_() {
+  var i;
+  if (typeof POLITICA_ES !== "undefined" && POLITICA_ES && typeof writePhysical === "function") {
+    for (i = 0; i < POLITICA_ES.lcd.bytes; i++) writePhysical(POLITICA_ES.lcd.inicio + i, 0);
+  }
+  if (typeof lcdSaveCursor === "function") lcdSaveCursor(0);
+  else if (typeof PropertiesService !== "undefined") {
+    PropertiesService.getDocumentProperties().setProperty("LCD_CURSOR", "0");
+  }
+}
+
 function loaderLog(message) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(typeof SHEET_NAME !== "undefined" ? SHEET_NAME : "Hoja 1") || ss.getActiveSheet();
@@ -159,7 +170,8 @@ function loadSelectedProgram() {
     if (Object.prototype.hasOwnProperty.call(built.pages, vpn)) listed.push(Number(vpn));
   }
   listed.sort(function (a, b) { return a - b; });
-  var sheet = loaderLog("Loaded " + program.name + " (VPN " + listed.join(", ") + "). Swap holds machine bytes, pageable frames are clear, pages are absent, FIFO is selected. F0H-FFH (teclado y LCD) no se tocaron.");
+  reiniciarPantallaAlCargar_();
+  var sheet = loaderLog("Loaded " + program.name + " (VPN " + listed.join(", ") + "). Swap holds machine bytes, pageable frames are clear, pages are absent, FIFO is selected. La cola F0H no se tocó; el LCD vuelve a la primera posición.");
   var pc = sheet.getRange(REG_PC);
   if (pc.setNumberFormat) pc.setNumberFormat("@");
   pc.setValue("00H");
