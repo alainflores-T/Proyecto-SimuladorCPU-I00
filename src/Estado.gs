@@ -273,6 +273,60 @@ function simBitsTexto(senales) {
   return t;
 }
 
+function simLineaVisual_(bus) {
+  var emisor = bus && bus.emisor ? String(bus.emisor) : "";
+  if (!emisor) return { estado: "High-Z", emisor: "", valor: "" };
+  var valor = bus.valor;
+  if (valor === null || typeof valor === "undefined") valor = "";
+  return { estado: "EN", emisor: emisor, valor: valor };
+}
+
+function simEnablesVisual_(e) {
+  var bits = String(e.bits || "");
+  var out = {};
+  var i;
+  for (i = 0; i < SIM_SENALES.length; i++) {
+    if (bits.length === SIM_SENALES.length) out[SIM_SENALES[i]] = bits.charAt(i) === "1" ? 1 : 0;
+    else out[SIM_SENALES[i]] = e.senales && e.senales[SIM_SENALES[i]] ? 1 : 0;
+  }
+  return out;
+}
+
+function simEventoVisual(e) {
+  var enables = simEnablesVisual_(e);
+  return {
+    fase: String(e.fase || ""),
+    evento: String(e.evento || ""),
+    pc: e.pc & 0x1FF,
+    mar: e.mar & 0x1FF,
+    mdr: e.mdr & 255,
+    ir: e.ir & 0xFFFF,
+    ax: e.ax & 255,
+    bx: e.bx & 255,
+    cx: e.cx & 255,
+    dx: e.dx & 255,
+    zf: e.zf ? 1 : 0,
+    cf: e.cf ? 1 : 0,
+    sf: e.sf ? 1 : 0,
+    buses: {
+      internoDir: simLineaVisual_(e.buses.dirInt),
+      internoDat: simLineaVisual_(e.buses.datInt),
+      memoriaDir: simLineaVisual_(e.buses.dirExt),
+      memoriaDat: simLineaVisual_(e.buses.datExt)
+    },
+    control: {
+      rd: e.buses.rd ? 1 : 0,
+      wr: e.buses.wr ? 1 : 0,
+      ck: e.buses.ck ? 1 : 0,
+      io: e.buses.io ? 1 : 0
+    },
+    enables: enables,
+    cache: String(e.cacheNota || ""),
+    aviso: String(e.banner || ""),
+    kbdCount: e.kbdCount || 0
+  };
+}
+
 function simFilaEscalar(nombre) {
   var i;
   for (i = 0; i < SIM_ESCALARES.length; i++) {

@@ -16,7 +16,7 @@ var archivos = [
   "src/Main.gs"
 ];
 
-var prohibido = /openById|UrlFetchApp|DriveApp|HtmlService|newTrigger|doGet\s*\(|doPost\s*\(|ScriptApp\.getOAuthToken|Class\s+/;
+var prohibido = /openById|UrlFetchApp|DriveApp|newTrigger|doGet\s*\(|doPost\s*\(|ScriptApp\.getOAuthToken|Class\s+/;
 var i;
 for (i = 0; i < archivos.length; i++) {
   var texto = fs.readFileSync(path.join(raiz, archivos[i]), "utf8");

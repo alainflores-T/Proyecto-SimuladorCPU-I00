@@ -965,7 +965,50 @@ function onOpen() {
     .addItem("Limpiar cola", "simLimpiarColaHoja")
     .addItem("Editar memoria", "simEditarHoja")
     .addItem("Correr pruebas en memoria", "simProbarEnCopia")
+    .addSeparator()
+    .addItem("Laboratorio visual", "simAbrirLab")
     .addToUi();
+}
+
+function simEscaparHtml_(texto) {
+  return String(texto === null || typeof texto === "undefined" ? "" : texto)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function simCableLab_(nombre, linea, y) {
+  var activo = linea && linea.estado === "EN";
+  var color = activo ? "#7CFFB2" : "#8A93A0";
+  var trazo = activo ? "" : ' stroke-dasharray="7 5"';
+  var detalle = activo ? ("EN " + linea.emisor) : "High-Z";
+  return '<text x="24" y="' + y + '" fill="#D5DDE6" font-size="14">' + simEscaparHtml_(nombre) + '</text>' +
+    '<line x1="250" y1="' + (y - 4) + '" x2="620" y2="' + (y - 4) + '" stroke="' + color + '" stroke-width="4"' + trazo + '/>' +
+    '<text x="640" y="' + y + '" fill="' + color + '" font-size="14">' + simEscaparHtml_(detalle) + '</text>';
+}
+
+function simPaginaLab_(evento) {
+  var buses = evento.buses;
+  var ctrl = evento.control;
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#12161c;color:#E8EEF4;font-family:sans-serif">' +
+    '<svg viewBox="0 0 900 280" width="100%" height="280">' +
+    simCableLab_("Dirección interna", buses.internoDir, 40) +
+    simCableLab_("Datos internos", buses.internoDat, 80) +
+    simCableLab_("Dirección a memoria", buses.memoriaDir, 120) +
+    simCableLab_("Datos a memoria", buses.memoriaDat, 160) +
+    '</svg>' +
+    '<p style="padding:0 24px">Fase ' + simEscaparHtml_(evento.fase) +
+    ' · RD ' + ctrl.rd + ' WR ' + ctrl.wr + ' CK ' + ctrl.ck + ' IO ' + ctrl.io +
+    ' · AX ' + evento.ax + ' BX ' + evento.bx + ' CX ' + evento.cx + ' DX ' + evento.dx +
+    ' · ' + simEscaparHtml_(evento.evento) + '</p></body></html>';
+}
+
+function simAbrirLab() {
+  var ss = simLibro_();
+  var e = simLeerEstado_(ss);
+  var html = simPaginaLab_(simEventoVisual(e));
+  var salida = HtmlService.createHtmlOutput(html).setWidth(980).setHeight(420);
+  SpreadsheetApp.getUi().showModalDialog(salida, "Laboratorio");
 }
 
 function onEdit(e) {

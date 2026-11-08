@@ -373,7 +373,24 @@ function simProbarTodo() {
     simAfirmar(fallos, e.ax === 0x0C && e.bx === 0x04 && e.cx === 0 && e.dx === 0x04 && e.zf === 1, "los registros de P1 sobreviven al guardado");
   });
 
-  if (total !== 17) fallos.push("se esperaban 17 casos y se ejecutaron " + total);
+  caso("18 cables siguen el paso real", function () {
+    var quieto = simEventoVisual(simEstadoInicial());
+    simAfirmar(fallos, quieto.buses.internoDir.estado === "High-Z" && quieto.buses.internoDat.estado === "High-Z", "en reposo los buses internos están en High-Z");
+    simAfirmar(fallos, quieto.enables.En_PC === 0 && quieto.enables.Ld_MAR === 0, "en reposo nadie habilita PC ni MAR");
+    var e = simEstadoInicial();
+    simMicroPaso(e);
+    var ev = simEventoVisual(e);
+    simAfirmar(fallos, ev.buses.internoDir.estado === "EN" && ev.buses.internoDir.emisor === "PC", "F1 conduce la dirección interna desde PC");
+    simAfirmar(fallos, ev.buses.internoDat.estado === "High-Z" && ev.enables.En_PC === 1 && ev.enables.Ld_MAR === 1 && ev.enables.En_AX === 0, "F1 no enciende el bus de datos ni AX");
+    var copia = simEstadoInicial();
+    simImportar(copia, simExportar(e));
+    var otra = simEventoVisual(copia);
+    simAfirmar(fallos, otra.buses.internoDir.estado === "EN" && otra.buses.internoDir.emisor === "PC" && otra.enables.En_PC === 1, "el mismo cable sigue EN después de guardar el estado");
+    var pagina = simPaginaLab_(ev);
+    simAfirmar(fallos, pagina.indexOf("EN PC") >= 0 && pagina.indexOf("High-Z") >= 0 && pagina.indexOf("setInterval") < 0, "el laboratorio pinta el evento real y no anima un ciclo propio");
+  });
+
+  if (total !== 18) fallos.push("se esperaban 18 casos y se ejecutaron " + total);
   var lineas = simInformePruebas_(total, fallos);
   if (fallos.length) throw new Error(lineas.join("\n"));
   return { ok: true, total: total, fallos: fallos };
