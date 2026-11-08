@@ -29,6 +29,7 @@ function onOpen() {
   try {
     SpreadsheetApp.getUi().createMenu("Simulador")
       .addItem("Abrir panel", "mostrarPanelSimulador")
+      .addItem("Diagnóstico (no borra nada)", "diagnosticarSimulador")
       .addItem("Preparar hojas (no borra datos ajenos)", "prepararSimulador")
       .addItem("Cargar programa seleccionado", "loadSelectedProgram")
       .addItem("Step", "uiStep")
@@ -66,12 +67,78 @@ function prepararSimulador() {
     resetearBuses(sheet);
   });
   paso("microcodigo", function () { inicializarHojaMicrocodigo(); });
+  paso("catalogo", function () { catalogInitialize(); });
+  var texto = informe.join("\n");
+  try {
+    var mal = [];
+    var i;
+    for (i = 0; i < informe.length; i++) if (informe[i].indexOf(": ok") === -1) mal.push(informe[i]);
+    SpreadsheetApp.getUi().alert(mal.length ? "Preparación con avisos. Corrija esto antes de RUN:\n" + texto : "Preparación lista. En el panel elija Arithmetic AX..DX, pulse LOAD y después RUN.");
+  } catch (eAlert) {}
+  return informe;
+}
+
+function diagnosticarSimulador() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var hoja = ss.getSheetByName(SHEET_NAME);
+  function celda(a1) {
+    try { return hoja ? hoja.getRange(a1).getValue() : ""; } catch (e) { return ""; }
+  }
+  function notaDe(nombre) {
+    var sh = ss.getSheetByName(nombre);
+    if (!sh) return "ausente";
+    try { return String(sh.getRange(1, 1).getNote() || "") || "sin nota"; } catch (e) { return "sin nota"; }
+  }
+  var virtual = (typeof memoriaVirtualActiva === "function") && memoriaVirtualActiva();
+  var cargado = (typeof programaVirtualCargado === "function") && programaVirtualCargado();
+  var dir = ss.getSheetByName("Directory");
+  var elegido = "";
+  try { elegido = dir ? dir.getRange("B1").getValue() : "(no hay Directory)"; } catch (eDir) { elegido = "(error)"; }
+  var limites = {};
+  try { limites = cpuLoadBoundaries(); } catch (eLim) { limites = {}; }
+  var nLim = 0;
+  var k;
+  for (k in limites) if (Object.prototype.hasOwnProperty.call(limites, k)) nLim++;
+  var cache = null;
+  try { cache = leerContadoresCache(); } catch (eC) { cache = null; }
+  var lineas = [
+    "Estado CPU: " + celda(CPU_STATE),
+    "PC " + celda(REG_PC) + " IR " + celda(REG_IR) + " MAR " + celda(REG_MAR) + " MDR " + celda(REG_MDR),
+    "AX " + celda(REG_AX) + " BX " + celda(REG_BX) + " CX " + celda(REG_CX) + " DX " + celda(REG_DX),
+    "Virtual: " + (virtual ? "sí" : "no") + "  Programa cargado: " + (cargado ? "sí" : "no"),
+    "Catálogo B1: " + elegido,
+    "Límites de instrucción guardados: " + nLim,
+    "Pausa Layout!E4: " + (uiPaused() ? "PAUSE" : "no"),
+    "Caché L1I " + (cache ? cache.l1i.hits + "/" + cache.l1i.misses : "—") + " L2 " + (cache ? cache.l2.hits + "/" + cache.l2.misses : "—"),
+    "Notas Swap=" + notaDe("Swap") + " TablaPaginas=" + notaDe("TablaPaginas") + " Caches=" + notaDe("Caches") + " Directory=" + notaDe("Directory")
+  ];
+  if (!virtual && !cargado) {
+    lineas.push("Lectura: RUN está en modo físico. Si PC avanzó y AX..DX siguen en 00H, recorrió celdas vacías. Pulse LOAD del programa Arithmetic AX..DX y luego RUN.");
+  } else if (virtual && cargado && nLim === 0) {
+    lineas.push("Lectura: hay modo virtual pero el mapa de instrucciones está vacío. Vuelva a pulsar LOAD.");
+  } else if (virtual && cargado) {
+    lineas.push("Lectura: el programa cargado debería ejecutarse desde 00H. Si PC no es 00H, pulse RESET y luego RUN.");
+  }
+  var informe = lineas.join("\n");
+  try {
+    var vista = ss.getSheetByName("Vista");
+    if (vista && String(vista.getRange(1, 1).getNote() || "") === "VISTA-v1") {
+      vista.getRange(44, 1).setValue(informe);
+    }
+  } catch (eVista) {}
+  try { SpreadsheetApp.getUi().alert(informe); } catch (eUi) {}
   return informe;
 }
 
 function cargarProgramaPorNombre(nombre) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var directory = ss.getSheetByName("Directory");
+  if (!directory || !ss.getSheetByName("Sources")) {
+    try { catalogInitialize(); } catch (eCat) {
+      return { ok: false, reason: "No se pudo crear el catálogo: " + (eCat && eCat.message ? eCat.message : eCat) };
+    }
+    directory = ss.getSheetByName("Directory");
+  }
   if (!directory) return { ok: false, reason: "Falta el catálogo. Ejecute catalogInitialize." };
   if (!nombre) return { ok: false, reason: "Indique el nombre del programa." };
   directory.getRange("B1").setValue(nombre);

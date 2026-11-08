@@ -102,8 +102,27 @@ function uiRunActiva_() {
   return true;
 }
 
+function uiProgramaListo_() {
+  if (typeof memoriaVirtualActiva === "function" && memoriaVirtualActiva()) {
+    if (typeof programaVirtualCargado === "function" && !programaVirtualCargado()) {
+      return { ok: false, reason: "La memoria virtual está activa y no hay un programa cargado. Pulse LOAD." };
+    }
+    return { ok: true, modo: "virtual" };
+  }
+  var sheet = uiMainSheet();
+  var pc = sheet.getRange(REG_PC).getValue();
+  var dato = "";
+  try { dato = obtenerDatoRAM(sheet, pc || "00H"); } catch (eRam) { dato = ""; }
+  if (typeof instruccionAusente_ === "function" && instruccionAusente_(dato)) {
+    return { ok: false, reason: "No hay un programa en PC " + (pc || "(vacío)") + ". Elija Arithmetic AX..DX y pulse LOAD. RUN no avanza por celdas vacías." };
+  }
+  return { ok: true, modo: "fisico" };
+}
+
 function uiComenzarEjecucion() {
   if (uiRunActiva_()) return { ok: false, reason: "Ya hay un RUN con token vigente. Espere el lote o pause." };
+  var listo = uiProgramaListo_();
+  if (!listo.ok) return { ok: false, reason: listo.reason, snapshot: uiSnapshot() };
   var token = String(new Date().getTime()) + "-" + Math.floor(Math.random() * 1000000);
   var props = uiProps_();
   props.setProperty(UI_TOKEN_KEY, token);

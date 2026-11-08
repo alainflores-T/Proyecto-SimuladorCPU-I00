@@ -54,6 +54,7 @@
     <button class="ghost" onclick="clearMachine()">CLEAR</button>
     <button class="ghost" onclick="politica('FIFO')">FIFO</button>
     <button class="ghost" onclick="politica('LRU')">LRU</button>
+    <button class="ghost" onclick="diagnostico()">Diagnóstico</button>
   </div>
   <div class="row">
     <input id="tecla" maxlength="8" placeholder="Tecla o ENTER">
@@ -138,7 +139,16 @@
       if (arg === undefined) run[nombre]();
       else run[nombre](arg);
     }
-    function tomar(r) { if (r && r.snapshot) pintar(r.snapshot); else if (r && r.reason) fail(r.reason); }
+    function tomar(r) {
+      if (r && r.snapshot) pintar(r.snapshot);
+      if (r && r.ok === false && r.reason) fail(r.reason);
+      else if (r && r.reason && !r.snapshot) fail(r.reason);
+    }
+    function diagnostico() {
+      remoto("diagnosticarSimulador", undefined, function (texto) {
+        document.getElementById("estado").textContent = String(texto || "");
+      });
+    }
     function cargar() { remoto("cargarProgramaPorNombre", document.getElementById("prog").value, tomar); }
     function step() { remoto("uiStep", undefined, tomar); }
     function resetCpu() { corriendo = false; token = null; remoto("uiReset", undefined, tomar); }

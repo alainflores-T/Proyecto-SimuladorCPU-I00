@@ -315,8 +315,19 @@ function faseFetch2(sheet) {
   sheet.getRange(CPU_STATE).setValue("FETCH_2");
   var marVal = sheet.getRange(REG_MAR).getValue();
   var datoRAM = leerMemoriaIntegrada(sheet, "instruccion");
+  if (instruccionAusente_(datoRAM)) {
+    sheet.getRange(CPU_STATE).setValue("HALT");
+    registrarLog(sheet, "FETCH: no hay instrucción en " + marVal + ". Elija el programa y pulse LOAD. RUN no sigue por celdas vacías.");
+    return;
+  }
   resaltarCelda(sheet, REG_MDR, "#FFF59D");
   registrarLogDetallado(sheet, "Bus externo: lectura RAM[" + marVal + "] → MDR (" + datoRAM + ")");
+}
+
+function instruccionAusente_(valor) {
+  if (valor == null) return true;
+  var t = String(valor).replace(/'/g, "").trim().toUpperCase();
+  return t === "" || t === "0" || t === "00" || t === "00H" || t === "0H";
 }
 
 function faseFetch3(sheet) {

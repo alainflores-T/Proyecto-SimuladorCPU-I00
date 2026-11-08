@@ -9,7 +9,22 @@
     {
       "name": "prepararSimulador sin fallos",
       "ok": true,
-      "detail": "marcos: ok || swap: ok || tabla: ok || reemplazo: ok || cache: ok || es: ok || vista: ok || buses: ok || microcodigo: ok"
+      "detail": "marcos: ok || swap: ok || tabla: ok || reemplazo: ok || cache: ok || es: ok || vista: ok || buses: ok || microcodigo: ok || catalogo: ok"
+    },
+    {
+      "name": "RUN sin LOAD no arranca",
+      "ok": true,
+      "detail": "No hay un programa en PC 00H. Elija Arithmetic AX..DX y pulse LOAD. RUN no avanza por celdas vacías."
+    },
+    {
+      "name": "celdas vacías no llevan el PC a 62H",
+      "ok": true,
+      "detail": "estado=HALT pc=00H pasos=2"
+    },
+    {
+      "name": "diagnóstico menciona LOAD",
+      "ok": true,
+      "detail": "Estado CPU: HALT"
     },
     {
       "name": "el marco 7 rechaza una página",

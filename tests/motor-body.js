@@ -5,6 +5,18 @@ function check(name, cond, detail) {
 
 var informe = prepararSimulador();
 check("prepararSimulador sin fallos", informe.every(function (linea) { return linea.indexOf(": ok") !== -1; }), informe.join(" || "));
+hoja().getRange(REG_PC).setValue("00H");
+hoja().getRange(CPU_STATE).setValue("READY");
+var sinCarga = uiComenzarEjecucion();
+check("RUN sin LOAD no arranca", sinCarga.ok === false && String(sinCarga.reason).indexOf("LOAD") !== -1, sinCarga.reason);
+var pasosVacios = 0;
+while (pasosVacios < 40 && String(hoja().getRange(CPU_STATE).getValue()) !== "HALT") {
+  stepCPU();
+  pasosVacios++;
+}
+check("celdas vacías no llevan el PC a 62H", String(hoja().getRange(CPU_STATE).getValue()) === "HALT" && String(hoja().getRange(REG_PC).getValue()) !== "62H", "estado=" + hoja().getRange(CPU_STATE).getValue() + " pc=" + hoja().getRange(REG_PC).getValue() + " pasos=" + pasosVacios);
+var diag = diagnosticarSimulador();
+check("diagnóstico menciona LOAD", String(diag).indexOf("LOAD") !== -1, String(diag).split("\n")[0]);
 var rechazoMarco = false;
 try { mapearPagina(0, 7); } catch (ePin) { rechazoMarco = String(ePin.message).indexOf("reservado") !== -1; }
 check("el marco 7 rechaza una página", rechazoMarco);
