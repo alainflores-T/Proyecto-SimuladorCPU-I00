@@ -73,6 +73,7 @@ function configurarRangoNoCacheable(inicio, bytes) {
 }
 
 function esNoCacheable_(addr) {
+  if (typeof esDireccionReservada_ === "function" && esDireccionReservada_(addr)) return true;
   var rango = rangoNoCacheable_();
   if (!rango) return false;
   return addr >= rango.inicio && addr < rango.inicio + rango.bytes;

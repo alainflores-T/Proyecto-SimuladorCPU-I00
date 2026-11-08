@@ -150,8 +150,9 @@ function masAntigua_(politica, candidato, actual) {
 
 function elegirVictimaReemplazo(contexto) {
   var politica = exigirPolitica_();
-  if (!contexto || !contexto.ocupados || contexto.ocupados.length !== 8) {
-    throw new Error("Reemplazo: se esperaban 8 marcos ocupados. No se eligió víctima.");
+  var esperados = (typeof marcosElegiblesReemplazo_ === "function") ? marcosElegiblesReemplazo_().length : 8;
+  if (!contexto || !contexto.ocupados || contexto.ocupados.length !== esperados) {
+    throw new Error("Reemplazo: se esperaban " + esperados + " marcos elegibles ocupados. No se eligió víctima.");
   }
   var mejor = null;
   var i;
@@ -159,6 +160,9 @@ function elegirVictimaReemplazo(contexto) {
     var pagina = contexto.ocupados[i];
     if (!pagina || typeof pagina.pfn !== "number" || typeof pagina.orden !== "number" || typeof pagina.uso !== "number" || typeof pagina.vpn !== "number") {
       throw new Error("Reemplazo: metadatos incompletos. No se inventa la cronología.");
+    }
+    if (typeof marcoReservadoES_ === "function" && pagina.pfn === marcoReservadoES_()) {
+      throw new Error("Reemplazo: un ocupado está en el marco de E/S. No se eligió víctima.");
     }
     if (!mejor || masAntigua_(politica, pagina, mejor)) mejor = pagina;
   }
@@ -181,7 +185,8 @@ function trazaReferencia_(politica, toques) {
     var usado = {};
     var i;
     for (i = 0; i < residentes.length; i++) usado[residentes[i].pfn] = true;
-    for (i = 0; i < 8; i++) if (!usado[i]) return i;
+    var tope = (typeof marcosElegiblesReemplazo_ === "function") ? marcosElegiblesReemplazo_().length : 8;
+    for (i = 0; i < tope; i++) if (!usado[i]) return i;
     return -1;
   }
   var t;
@@ -391,7 +396,8 @@ function instalarYProbarIssue26() {
     for (i = 0; i < toques.length; i++) {
       var antes = residentes();
       tocar(toques[i]);
-      if (antes.length === 8 && antes.indexOf(toques[i]) < 0) {
+      var cupo = (typeof marcosElegiblesReemplazo_ === "function") ? marcosElegiblesReemplazo_().length : 8;
+      if (antes.length === cupo && antes.indexOf(toques[i]) < 0) {
         var despues = residentes();
         for (k = 0; k < antes.length; k++) if (despues.indexOf(antes[k]) < 0) victimas.push(antes[k]);
       }
@@ -412,7 +418,7 @@ function instalarYProbarIssue26() {
       try { desmapearPagina(vpn); } catch (e) {}
     }
   }
-  var toques = [0, 1, 2, 3, 4, 5, 6, 7, 0, 8, 9, 1, 10];
+  var toques = [0, 1, 2, 3, 4, 5, 6, 0, 7, 8, 1, 9];
   var fifoMano = "0,1,2,3";
   var lruMano = "1,2,3,4";
   Logger.log("Reemplazo: FIFO y LRU. La prueba no vacía la RAM ni carga un programa.");
@@ -433,21 +439,21 @@ function instalarYProbarIssue26() {
       registrar(primera === "FIFO" && hojaPol.getRange(2, 2).getValue() === "LRU" && politicaGuardada_() === "LRU", "repetir la instalación conserva la política LRU");
     });
     seccion(function () {
-      var cortos = [0, 1, 2, 3, 4, 5, 6, 7, 0, 8];
-      registrar(trazaReferencia_("FIFO", cortos) === "0" && trazaReferencia_("LRU", cortos) === "1", "en memoria, el corte de 8 marcos echa 0 en FIFO y 1 en LRU");
+      var cortos = [0, 1, 2, 3, 4, 5, 6, 0, 7];
+      registrar(trazaReferencia_("FIFO", cortos) === "0" && trazaReferencia_("LRU", cortos) === "1", "en memoria, 7 marcos elegibles: FIFO echa 0 y LRU echa 1");
       usarFIFO();
       prepararVirtual();
       llenarSwap();
       limpiarTabla();
       var i;
-      for (i = 0; i <= 7; i++) tocar(i);
+      for (i = 0; i <= 6; i++) tocar(i);
       var panel = false;
       var fifoOk = false;
       try {
-        fifoOk = MarcosRAM.leer(0, "fifo") === 0 && MarcosRAM.leer(7, "fifo") === 7;
+        fifoOk = MarcosRAM.leer(0, "fifo") === 0 && MarcosRAM.leer(6, "fifo") === 6 && MarcosRAM.leer(7, "vpn") === null;
         panel = true;
       } catch (ePanel) { panel = false; }
-      if (panel) registrar(fifoOk, "los marcos 0 y 7 quedan en los extremos de la cola FIFO");
+      if (panel) registrar(fifoOk, "FIFO usa los marcos 0 y 6; el marco 7 no tiene página");
       else registrar(true, "sin panel de marcos la tabla igual guardó orden y último uso");
       tocar(0);
       var mar = hoja1.getRange(REG_MAR);

@@ -217,16 +217,6 @@ function limpiarMaquina() {
   if (typeof resetCaches === "function") {
     try { resetCaches(); } catch (eCache) {}
   }
-  if (typeof esRamLimpiar === "function") {
-    try { esRamLimpiar(); } catch (eEs) {}
-  }
-  if (typeof PropertiesService !== "undefined") {
-    var props = PropertiesService.getDocumentProperties();
-    if (props.deleteProperty) {
-      props.deleteProperty("KBD_META");
-      props.deleteProperty("LCD_CURSOR");
-    }
-  }
   var layout = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(UI_LAYOUT_SHEET);
   if (layout) layout.getRange(UI_PAUSE_CELL).setValue("");
   sheet.getRange(CPU_STATE).setValue("READY");
@@ -295,7 +285,7 @@ function uiLeerPaginas_() {
   return paginas;
 }
 
-function uiSnapshot() {
+function uiSnapshotDatos_() {
   var sheet = null;
   try { sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME); } catch (e) { sheet = null; }
   function celda(a1) {
@@ -344,7 +334,21 @@ function uiSnapshot() {
     paginas: uiLeerPaginas_(),
     teclado: teclado && teclado.ok ? teclado.bytes : [],
     lcd: lcd && lcd.ok ? lcd.bytes : [],
+    politica: (typeof politicaGuardada_ === "function") ? (politicaGuardada_() || "") : "",
+    marcosElegibles: (typeof marcosElegiblesReemplazo_ === "function") ? marcosElegiblesReemplazo_() : [],
+    marcoReservado: (typeof marcoReservadoES_ === "function") ? marcoReservadoES_() : null,
     pausa: uiPaused(),
     runActivo: uiRunActiva_()
   };
+}
+
+function uiSnapshot() {
+  var snap = uiSnapshotDatos_();
+  if (typeof pintarVista === "function") {
+    try { pintarVista(snap); } catch (eVista) {}
+  }
+  if (typeof esRamPintar_ === "function") {
+    try { esRamPintar_(); } catch (eEs) {}
+  }
+  return snap;
 }

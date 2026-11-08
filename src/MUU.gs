@@ -8,7 +8,7 @@
 // Modo virtual: una página con P=0 se carga desde el swap a un marco libre,
 // se reintenta el acceso una sola vez y se anota el fallo.
 // Con los 8 marcos ocupados y sin política, no se pisa ningún marco.
-// FIFO y LRU son el issue 26. El marco 7 no se reserva.
+// FIFO y LRU son el issue 26. El marco 7 está reservado para E/S (POLITICA_ES).
 //
 // Dirección 0..511, o HEX con H (01FH, 020H, 1FFH).
 // El número 20 es la dirección 20. El texto "20" no es una dirección.
@@ -399,6 +399,9 @@ var MMU = (function () {
   function mapear_(vpn, pfn) {
     var v = validarVpn_(vpn);
     var f = validarPfn_(pfn);
+    if (typeof marcoReservadoES_ === "function" && f === marcoReservadoES_()) {
+      throw new Error("MMU: el marco " + f + " está reservado para teclado y LCD. No se escribió nada.");
+    }
     var ctx = exigir_();
     if (!coincide_(ctx.hoja, ctx.estado)) throw new Error("MMU: la tabla y el estado guardado no coinciden. No se escribió nada.");
     var i;
@@ -485,6 +488,9 @@ var MMU = (function () {
   }
 
   function escribirMarcoFisico_(pfn, valores32) {
+    if (typeof marcoReservadoES_ === "function" && pfn === marcoReservadoES_()) {
+      throw new Error("MMU: el marco " + pfn + " está reservado para teclado y LCD. No se escribió la página.");
+    }
     var hoja = hojaRam_();
     var pos = posRam_(pfn * 32);
     var filas = [[], []];
@@ -604,8 +610,15 @@ var MMU = (function () {
         }
       }
     }
+    var pin = (typeof marcoReservadoES_ === "function") ? marcoReservadoES_() : null;
+    if (pin !== null && vpnEn_(tabla, pin) !== null) {
+      throw new Error("MMU: el marco " + pin + " tiene una página y está reservado para E/S. No se escribió nada.");
+    }
     var libres = [];
-    for (i = 0; i < 8; i++) if (vpnEn_(tabla, i) === null) libres.push(i);
+    for (i = 0; i < 8; i++) {
+      if (i === pin) continue;
+      if (vpnEn_(tabla, i) === null) libres.push(i);
+    }
     return { tabla: tabla, marcos: marcos, libres: libres };
   }
 
@@ -680,7 +693,7 @@ var MMU = (function () {
         if (pg.p) ocupados.push({ vpn: q, pfn: pg.pfn, dirty: pg.dirty, ref: pg.ref, orden: pg.orden, uso: pg.uso });
       }
       var hook = obtenerReemplazo_();
-      if (!hook) throw new Error("MMU: los 8 marcos están ocupados y no hay política de reemplazo (issue 26). No se escribió nada.");
+      if (!hook) throw new Error("MMU: los marcos elegibles están ocupados y no hay política de reemplazo. No se escribió nada.");
       var decision;
       try {
         decision = hook({ vpn: vpn, direccion: fallo.pageFault.direccion, escritura: !!escritura, ocupados: ocupados });
@@ -690,6 +703,9 @@ var MMU = (function () {
       var vVpn = decision ? vpnEn_(inv.tabla, decision.pfn) : null;
       if (!decision || !entero_(decision.pfn, 0, 7) || vVpn === null) {
         throw new Error("MMU: el reemplazo no devolvió un marco ocupado. No se escribió nada.");
+      }
+      if (typeof marcoReservadoES_ === "function" && decision.pfn === marcoReservadoES_()) {
+        throw new Error("MMU: el reemplazo eligió el marco reservado para E/S. No se escribió nada.");
       }
       pfn = decision.pfn;
       victima = { vpn: vVpn, dirty: ctx.estado.paginas[vVpn].dirty };

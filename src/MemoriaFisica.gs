@@ -220,7 +220,18 @@ var memoriaFisica_ = (function () {
   }
 
   function vaciar() {
-    hoja_().getRange(RAM_START_ROW, RAM_START_COL, 16, 16).setValue("");
+    var hoja = hoja_();
+    var datos = hoja.getRange(RAM_START_ROW, RAM_START_COL, 16, 16).getValues();
+    var r;
+    var c;
+    for (r = 0; r < 16; r++) {
+      for (c = 0; c < 16; c++) {
+        var addr = r * 16 + c;
+        if (typeof esDireccionReservada_ === "function" && esDireccionReservada_(addr)) continue;
+        datos[r][c] = "";
+      }
+    }
+    hoja.getRange(RAM_START_ROW, RAM_START_COL, 16, 16).setValues(datos);
   }
 
   function limpiarFondo() {

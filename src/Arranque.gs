@@ -59,6 +59,7 @@ function prepararSimulador() {
     if (typeof resetContadoresCache === "function") resetContadoresCache();
   });
   paso("es", function () { esRamInstalar(); });
+  paso("vista", function () { instalarVista(); });
   paso("buses", function () {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
     inicializarPanelBuses(sheet);
@@ -68,9 +69,33 @@ function prepararSimulador() {
   return informe;
 }
 
+function cargarProgramaPorNombre(nombre) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var directory = ss.getSheetByName("Directory");
+  if (!directory) return { ok: false, reason: "Falta el catálogo. Ejecute catalogInitialize." };
+  if (!nombre) return { ok: false, reason: "Indique el nombre del programa." };
+  directory.getRange("B1").setValue(nombre);
+  var r = loadSelectedProgram();
+  return { ok: !!(r && r.ok), reason: r && r.reason, program: nombre, snapshot: uiSnapshot() };
+}
+
+function panelEnviarTecla(texto) {
+  var parsed = kbdKeyCode(texto);
+  if (!parsed.ok) return parsed;
+  var result = kbdEnqueueByte(parsed.byte);
+  result.snapshot = uiSnapshot();
+  return result;
+}
+
+function panelPolitica(nombre) {
+  if (nombre !== "FIFO" && nombre !== "LRU") return { ok: false, reason: "Use FIFO o LRU." };
+  var hecha = asegurarPoliticaDemostracion(nombre);
+  return { ok: hecha === nombre, politica: hecha, snapshot: uiSnapshot() };
+}
+
 function mostrarPanelSimulador() {
   var html = HtmlService.createHtmlOutputFromFile("Panel")
     .setTitle("Simulador")
-    .setWidth(420);
+    .setWidth(360);
   SpreadsheetApp.getUi().showSidebar(html);
 }

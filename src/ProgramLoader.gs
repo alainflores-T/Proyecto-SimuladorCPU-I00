@@ -159,7 +159,7 @@ function loadSelectedProgram() {
     if (Object.prototype.hasOwnProperty.call(built.pages, vpn)) listed.push(Number(vpn));
   }
   listed.sort(function (a, b) { return a - b; });
-  var sheet = loaderLog("Loaded " + program.name + " (VPN " + listed.join(", ") + "). Swap holds machine bytes, RAM frames are clear, pages are absent, FIFO is selected. Keyboard and LCD use the dedicated 16-byte I/O RAM, outside the 8 frames.");
+  var sheet = loaderLog("Loaded " + program.name + " (VPN " + listed.join(", ") + "). Swap holds machine bytes, pageable frames are clear, pages are absent, FIFO is selected. F0H-FFH (teclado y LCD) no se tocaron.");
   var pc = sheet.getRange(REG_PC);
   if (pc.setNumberFormat) pc.setNumberFormat("@");
   pc.setValue("00H");

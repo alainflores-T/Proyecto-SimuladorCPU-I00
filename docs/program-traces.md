@@ -7,8 +7,8 @@ Motor de producción (`stepCPU`, MMU, caché, `IN`/`OUT`, cargador) con `Spreads
 | Programa | Resultado medido |
 | --- | --- |
 | Aritmética | HALT con AX=`0CH`, BX=`04H`, CX=`00H`, DX=`04H`, ZF=1, CF=0, SF=0. L1I tuvo miss y después hit. |
-| Eco | Ocho `IN`/`OUT` con la memoria virtual encendida. LCD = 65,66,67,68,69,70,71,72. La cola no está en la dirección física F0H. |
-| Disperso | HALT con AX=`03H`, BX=`02H`, CX=`03H`, DX=`04H`. Al parar hay 8 páginas presentes. Dirty en VPN 7, 9, 14 y 15. L1D: 8 misses y 0 hits (cada operando cae en otra línea y L1D guarda una sola). L1I: 27 hits, 5 misses, tasa 84.4. L2: 0 hits, 13 misses. El log tiene `PAGE FAULT`. Con FIFO, los dos desalojos del propio programa fueron páginas limpias (0 y 2). El write-back de un marco sucio se midió al pedir páginas de más después del HALT. |
+| Eco | Ocho `IN`/`OUT` con la memoria virtual encendida. LCD = 65..72 en `readPhysical(F8H)`. La cola está en F0H. |
+| Disperso | HALT con AX=`03H`, BX=`02H`, CX=`03H`, DX=`04H`. Como máximo 7 páginas presentes y ninguna en el marco 7. El write-back no pisa F0H–FFH. |
 
 `FETCH_3` no añade eventos de caché si `FETCH_2` ya leyó la instrucción (0 eventos nuevos en la prueba).
 

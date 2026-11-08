@@ -95,21 +95,33 @@ var CW_COLOR_ACTIVO = "#C8E6C9";
 var CW_COLOR_INACTIVO = "#EEEEEE";
 var MICROCODIGO_SHEET_NAME = "Microcodigo";
 
-// Los 256 B siguen siendo 8 marcos paginables de 32 B.
-// Teclado (8 B) y vídeo del LCD (8 B) no se recortan de esos marcos:
-// viven en una RAM de E/S aparte (POLITICA_ES). RESERVA_ES null significa
-// «no hay hueco dentro de O8:AD23». Ver docs/decision-es-vm.md.
+// RAM física = 256 B = 8 marcos de 32 B. No hay bytes fuera de ese arreglo.
+// El marco 7 (E0H-FFH) no admite una página de 32 B y a la vez la E/S,
+// así que queda excluido del reemplazo. Dentro de él:
+//   E0H-EFH relleno reservado (visible, no es otra memoria),
+//   F0H-F7H cola de teclado, F8H-FFH vídeo del LCD.
+// Los marcos 0-6 son los únicos elegibles para páginas.
 var POLITICA_ES = {
-  nombre: "ram-dedicada-16",
-  tecladoBytes: 8,
-  lcdBytes: 8,
-  ramPaginable: 256,
-  marcos: 8,
+  nombre: "ventana-marco-7",
+  ramFisica: 256,
+  marcosFisicos: 8,
   bytesPorMarco: 32,
-  solapaMarcos: false
+  marcosElegibles: 7,
+  marcoReservado: 7,
+  reservaInicio: 0xE0,
+  reservaBytes: 32,
+  rellenoInicio: 0xE0,
+  rellenoBytes: 16,
+  teclado: { inicio: 0xF0, bytes: 8 },
+  lcd: { inicio: 0xF8, bytes: 8 }
 };
 
-const RESERVA_ES = null;
+// El mapa ya no está pendiente: F0H y F8H son la ventana del marco 7.
+const RESERVA_ES = {
+  teclado: { inicio: 0xF0, bytes: 8 },
+  lcd: { inicio: 0xF8, bytes: 8 },
+  aceptarMarcoNoPaginable: true
+};
 
 // Propuesta NO activa. No está asignada a RESERVA_ES.
 // F0H-F7H y F8H-FFH caerían en el marco 7, que dejaría de ser

@@ -55,7 +55,7 @@ function ioFrameFree(frame) {
 }
 
 function esPoliticaDedicada_() {
-  return typeof POLITICA_ES !== "undefined" && POLITICA_ES && POLITICA_ES.nombre === "ram-dedicada-16" && POLITICA_ES.solapaMarcos === false;
+  return typeof POLITICA_ES !== "undefined" && POLITICA_ES && POLITICA_ES.nombre === "ventana-marco-7";
 }
 
 /** Both reads and writes require the physical-test guard, salvo la RAM dedicada. */
@@ -67,8 +67,8 @@ function ioCanUseRam() {
     return {
       ok: true,
       map: {
-        keyboard: { start: 0, bytes: 8 },
-        lcd: { start: 8, bytes: 8 },
+        keyboard: { start: POLITICA_ES.teclado.inicio, bytes: POLITICA_ES.teclado.bytes },
+        lcd: { start: POLITICA_ES.lcd.inicio, bytes: POLITICA_ES.lcd.bytes },
         dedicada: true
       },
       frames: []

@@ -5,6 +5,9 @@ function check(name, cond, detail) {
 
 var informe = prepararSimulador();
 check("prepararSimulador sin fallos", informe.every(function (linea) { return linea.indexOf(": ok") !== -1; }), informe.join(" || "));
+var rechazoMarco = false;
+try { mapearPagina(0, 7); } catch (ePin) { rechazoMarco = String(ePin.message).indexOf("reservado") !== -1; }
+check("el marco 7 rechaza una página", rechazoMarco);
 catalogInitialize();
 var directory = book.getSheetByName("Directory");
 check("catálogo inicializado", !!directory && directory.getRange("B1").getValue() !== "", String(directory && directory.getRange("B1").getValue()));
@@ -109,25 +112,40 @@ for (i = 0; i < 8; i++) {
   var enq = kbdEnqueueByte(65 + i);
   if (!enq.ok) check("encolar " + i, false, enq.reason);
 }
-check("cola de 8 no usa la dirección F0H de los marcos", (function () {
-  var q = esRamLeerRegion({ start: 0, bytes: 8 });
-  return q.ok && q.bytes[0] === 65 && readPhysical(0xF0) !== 65;
-})(), "F0=" + readPhysical(0xF0));
+check("la cola está en readPhysical F0H", (function () {
+  var q = esRamLeerRegion(POLITICA_ES.teclado);
+  return q.ok && q.bytes[0] === 65 && readPhysical(0xF0) === 65 && readPhysical(0xE0) !== 65;
+})(), "F0=" + readPhysical(0xF0) + " E0=" + readPhysical(0xE0));
 var fin2 = correrHastaHalt(120);
 check("eco llega a HALT", String(hoja().getRange(CPU_STATE).getValue()) === "HALT", JSON.stringify(fin2));
-var lcd = esRamLeerRegion({ start: 8, bytes: 8 });
-check("LCD muestra ABCDEFGH", lcd.ok && lcd.bytes.join(",") === "65,66,67,68,69,70,71,72", lcd.ok ? lcd.bytes.join(",") : lcd.reason);
-check("ocho marcos siguen siendo el espacio paginable", POLITICA_ES.marcos === 8 && POLITICA_ES.solapaMarcos === false && RESERVA_ES === null);
+var lcd = esRamLeerRegion(POLITICA_ES.lcd);
+check("LCD muestra ABCDEFGH en F8H", lcd.ok && lcd.bytes.join(",") === "65,66,67,68,69,70,71,72" && readPhysical(0xF8) === 65, lcd.ok ? lcd.bytes.join(",") : lcd.reason);
+check("256 B, 8 marcos físicos, 7 elegibles", POLITICA_ES.ramFisica === 256 && POLITICA_ES.marcosFisicos === 8 && POLITICA_ES.marcosElegibles === 7 && POLITICA_ES.marcoReservado === 7 && RESERVA_ES.teclado.inicio === 0xF0);
 
 // Programa disperso: fallos, reemplazo y misses por el ciclo real.
 limpiarMaquina();
+var marca = kbdEnqueueByte(0xAB);
 var c3 = cargar("Scattered accesses");
+check("LOAD no borra la cola", marca.ok && c3 && c3.ok && readPhysical(0xF0) === 0xAB, "F0=" + readPhysical(0xF0));
 check("LOAD disperso", c3 && c3.ok, JSON.stringify(c3) + " " + alerts.join(" | "));
 var fin3 = correrHastaHalt(160);
 check("disperso llega a HALT", String(hoja().getRange(CPU_STATE).getValue()) === "HALT", JSON.stringify(fin3));
 check("disperso registros", reg("AX") === "03H" && reg("BX") === "02H" && reg("CX") === "03H" && reg("DX") === "04H",
   JSON.stringify({ AX: reg("AX"), BX: reg("BX"), CX: reg("CX"), DX: reg("DX") }));
-check("nunca hay más de 8 páginas presentes", presentes() <= 8 && presentes() >= 1, "presentes=" + presentes());
+function pfnUsados() {
+  var lista = [];
+  var i;
+  for (i = 0; i < 16; i++) {
+    if (String(book.getSheetByName("TablaPaginas").getRange(3 + i, 2).getValue()) === "1") {
+      lista.push(String(book.getSheetByName("TablaPaginas").getRange(3 + i, 3).getValue()));
+    }
+  }
+  return lista;
+}
+check("hay 7 páginas y ninguna en el marco 7", presentes() === 7 && pfnUsados().indexOf("7") === -1, "presentes=" + presentes() + " pfn=" + pfnUsados().join(","));
+var vista = book.getSheetByName("Vista");
+var snapVista = uiSnapshot();
+check("la hoja Vista refleja AX", vista && String(vista.getRange(5, 2).getValue()) === reg("AX") && snapVista.ax === reg("AX"), String(vista && vista.getRange(5, 2).getValue()));
 var cache3 = leerContadoresCache();
 check("disperso acumula misses de datos", cache3.l1d.misses >= 1 && cache3.l2.misses >= 1, JSON.stringify({ l1d: cache3.l1d, l2: cache3.l2 }));
 var logText = "";
@@ -155,15 +173,20 @@ if (log) {
   log2 = log.getRange(1, 3, last2, 1).getValues().map(function (row) { return String(row[0]); }).join("\n");
 }
 check("un desalojo sucio hace write-back de 32 bytes", log2.indexOf("write-back") !== -1, (extraErr ? extraErr + " || " : "") + log2.split("\n").filter(function (l) { return l.indexOf("write-back") !== -1 || l.indexOf("PAGE FAULT") !== -1; }).slice(-3).join(" || "));
-check("tras más fallos siguen 8 páginas presentes", presentes() === 8, "presentes=" + presentes());
+check("tras más fallos siguen 7 páginas presentes", presentes() === 7, "presentes=" + presentes());
 
 // Fronteras de traducción: 0 y 511 caben; 512 no.
 var t0 = describirDireccionMMU_ = null;
+var presente = null;
+var pi;
+for (pi = 0; pi < 16; pi++) {
+  if (String(book.getSheetByName("TablaPaginas").getRange(3 + pi, 2).getValue()) === "1") { presente = pi; break; }
+}
 try {
-  var borde = translate(0);
-  check("traducir 0 cuando está presente", borde && typeof borde.fisica === "number", JSON.stringify(borde));
+  var borde = translate(presente * 32);
+  check("una página presente traduce fuera del marco 7", borde && borde.pfn !== 7 && borde.fisica < 0xE0, JSON.stringify(borde));
 } catch (e0) {
-  check("traducir 0 cuando está presente", false, e0.message);
+  check("una página presente traduce fuera del marco 7", false, e0.message);
 }
 var rechaza512 = false;
 try { translate(512); } catch (e512) { rechaza512 = String(e512.message).indexOf("0..511") !== -1; }

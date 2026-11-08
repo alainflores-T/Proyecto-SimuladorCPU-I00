@@ -55,15 +55,16 @@ Un bus sin conductor muestra `ZZ`. Si dos componentes tienen `En=1` en el mismo 
 
 ## Memoria y caché
 
-- Física: 256 B, marcos 0 a 7, 32 B. Dirección física = PFN × 32 + desplazamiento.
-- Virtual: 512 B, páginas 0 a 15. VPN = dirección >> 5.
-- Fallo: la página ausente se trae del swap. Con los 8 marcos llenos, FIFO o LRU elige la víctima. Si está sucia, 32 B vuelven al swap y la caché de ese marco se invalida.
+- Física: 256 B, marcos 0 a 7, 32 B. Solo los marcos 0 a 6 reciben páginas.
+- El marco 7 es la E/S: F0H–F7H teclado, F8H–FFH LCD. E0H–EFH es relleno de ese marco, dentro de los 256 B.
+- Virtual: 512 B, páginas 0 a 15. La traducción no cae en el marco 7.
+- Fallo: con los 7 marcos elegibles llenos, FIFO o LRU elige la víctima entre ellos. Si está sucia, 32 B vuelven al swap. F0H–FFH no se pisan.
 - El `LOAD` deja la política **FIFO** visible en la hoja Reemplazo. `usarLRU` la cambia.
 - L1I y L1D: una línea de 8 B cada una. L2: 4 líneas de 8 B, correspondencia directa. Escritura write-through. L2 solo cuenta cuando L1 falla. `FETCH_3` reutiliza la lectura de `FETCH_2` y no suma otro miss.
 
 ## E/S
 
-`IN reg, [KBD]` y `OUT [LCD], reg` usan el bus de datos. La cola y el vídeo son 8 B + 8 B fuera de los marcos. Conviven con un programa paginado. Un `IN` con la cola vacía entrega `00H` y no mueve la cabeza.
+`IN reg, [KBD]` y `OUT [LCD], reg` usan el bus de datos y las celdas F0H–FFH. Conviven con un programa paginado. Un `IN` con la cola vacía entrega `00H` y no mueve la cabeza.
 
 ## Controles
 

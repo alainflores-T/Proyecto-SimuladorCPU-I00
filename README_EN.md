@@ -55,15 +55,16 @@ An undriven bus shows `ZZ`. If two devices have `En=1` on the same bus, `transfe
 
 ## Memory and cache
 
-- Physical: 256 B, frames 0–7, 32 B. Physical address = PFN × 32 + offset.
-- Virtual: 512 B, pages 0–15. VPN = address >> 5.
-- A missing page is loaded from swap. When all 8 frames are full, FIFO or LRU picks the victim. A dirty victim is written back (32 B) and that frame's cache lines are invalidated.
+- Physical memory is 256 B: frames 0–7, 32 B each. Only frames 0–6 hold pages.
+- Frame 7 is I/O inside that RAM: F0H–F7H keyboard, F8H–FFH LCD. E0H–EFH is the unused rest of the same frame, not a second memory.
+- Virtual space is 512 B, pages 0–15. Translation never targets frame 7.
+- When the 7 eligible frames are full, FIFO or LRU picks a victim among them. A dirty victim is written back. F0H–FFH are not overwritten by paging.
 - LOAD selects **FIFO** and shows it on the Reemplazo sheet. `usarLRU` switches the policy.
 - L1I and L1D: one 8-byte line each. L2: four 8-byte lines, direct-mapped. Write-through. L2 is counted only when L1 misses. `FETCH_3` reuses the bytes `FETCH_2` already read.
 
 ## I/O
 
-`IN reg, [KBD]` and `OUT [LCD], reg` drive the data bus. The queue and the video buffer are 8 B + 8 B outside the page frames, so a paged program and the keyboard can run together. An empty `IN` returns `00H` and does not advance the queue.
+`IN reg, [KBD]` and `OUT [LCD], reg` drive the data bus and the cells F0H–FFH. They run together with a paged program. An empty `IN` returns `00H` and does not advance the queue.
 
 ## Controls
 
