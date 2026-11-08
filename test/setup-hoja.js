@@ -188,6 +188,7 @@ function simReglaFormato_() {
     whenTextEqualTo: function () { return o; },
     whenTextDoesNotContain: function () { return o; },
     whenTextContains: function () { return o; },
+    whenNumberEqualTo: function () { return o; },
     setBackground: function () { return o; },
     setFontColor: function () { return o; },
     setRanges: function () { return o; },
@@ -231,6 +232,11 @@ function simProbarSetupHoja() {
   afirmar(rechazo, "el mock rechaza una fila de 1 columna en un rango de 2");
 
   var libro = simCrearLibroPrueba();
+  libro.insertSheet("CPU");
+  libro.insertSheet("BUSES");
+  libro.insertSheet("CACHE");
+  libro.insertSheet("MEMORIA");
+  libro.insertSheet("ES");
   simInstalarServiciosPrueba(libro);
   var primero = simPrepararEstaCopia();
   afirmar(String(primero).indexOf("inicial") >= 0, "la primera preparación crea el estado");
@@ -239,15 +245,30 @@ function simProbarSetupHoja() {
   afirmar(libro.getSheetByName("PROGRAMAS").getRange(1, 1).getMergedRanges().length === 0, "el merge heredado se separó");
   var panel = libro.getSheetByName("PANEL");
   afirmar(String(panel.getRange(1, 1).getValue()).indexOf("Simulador") === 0, "el título del panel se escribió");
-  afirmar(String(panel.getRange(5, 2).getValue()).indexOf("=") === 0, "la fórmula de estado está en la columna 2");
+  afirmar(String(panel.getRange(4, 4).getValue()) === "CPU", "la CPU está en la hoja principal");
+  afirmar(String(panel.getRange(4, 9).getValue()) === "Buses", "los buses están en la hoja principal");
+  afirmar(String(panel.getRange(22, 1).getValue()) === "Memoria", "la memoria está en la hoja principal");
+  afirmar(String(panel.getRange(22, 10).getValue()) === "Caché", "la caché está en la hoja principal");
+  afirmar(String(panel.getRange(44, 1).getValue()) === "E/S", "la E/S está en la hoja principal");
+  afirmar(String(panel.getRange(23, 1).getValue()).indexOf("7") >= 0, "el riesgo de 7 marcos paginables es visible");
+  afirmar(String(panel.getRange(7, 5).getValue()).indexOf("=") === 0, "el PC es una fórmula al estado");
+  afirmar(String(panel.getRange(7, 12).getValue()).indexOf("ZZ") >= 0 || String(panel.getRange(7, 12).getValue()).indexOf("=") === 0, "el bus muestra ZZ o una fórmula");
+  afirmar(libro.getSheetByName("CPU").oculta === true, "la pestaña CPU antigua se oculta y no se borra");
+  afirmar(libro.getSheetByName("Hoja 1").oculta !== true, "las pestañas heredadas siguen visibles");
   afirmar(libro.getSheetByName("_ESTADO").getRange(1, 1).getValue() === SIM_MAGIA, "la magia del estado quedó escrita");
+  libro.getSheetByName("PROGRAMAS").getRange(5, 2).setValue("MOV AX, 01H");
 
   var filaAx = simFilaEscalar("ax");
   libro.getSheetByName("_ESTADO").getRange(filaAx, 2).setValue(42);
+  libro.getSheetByName("PANEL").getRange(9, 2).setValue("P2");
+  libro.getSheetByName("PANEL").getRange(11, 2).setValue("H");
   var segundo = simPrepararEstaCopia();
   afirmar(String(segundo).indexOf("conservó") >= 0, "el reintento avisa que conservó el estado");
   afirmar(libro.getSheetByName("_ESTADO").getRange(filaAx, 2).getValue() === 42, "el reintento no borra un valor ya guardado");
+  afirmar(libro.getSheetByName("PROGRAMAS").getRange(5, 2).getValue() === "MOV AX, 01H", "el editor de programas sobrevive al reintento");
   afirmar(libro.getSheetByName("Hoja 1") !== null, "las pestañas ajenas siguen en el libro");
+  afirmar(libro.getSheetByName("PANEL").getRange(9, 2).getValue() === "P2", "el selector de programa sobrevive al reintento");
+  afirmar(libro.getSheetByName("PANEL").getRange(11, 2).getValue() === "H", "la tecla escrita sobrevive al reintento");
 
   var choque = false;
   try { libro.insertSheet("programas"); }

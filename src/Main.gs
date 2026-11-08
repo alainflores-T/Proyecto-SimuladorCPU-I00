@@ -162,25 +162,37 @@ function simProteger_(hoja, libres) {
   return p;
 }
 
+function simRefVista_(nombre) {
+  return "=_ESTADO!" + simCeldaVista(nombre);
+}
+
+function simRefEsc_(nombre) {
+  return "=_ESTADO!B" + simFilaEscalar(nombre);
+}
+
+function simOcultarSiExiste_(ss, nombre) {
+  var hoja = ss.getSheetByName(nombre);
+  if (hoja && hoja.hideSheet) hoja.hideSheet();
+}
+
 function simPrepararEstaCopia() {
   var ss = simLibro_();
   var estado = simHoja_(ss, "_ESTADO");
   var ya = String(estado.getRange(1, 1).getValue()) === SIM_MAGIA;
   simPintarEstado_(estado, ya);
   simPintarPanel_(ss);
-  simPintarCpu_(ss);
-  simPintarBuses_(ss);
-  simPintarCache_(ss);
-  simPintarMemoria_(ss);
-  simPintarEs_(ss);
   simPintarProgramas_(ss);
   simPintarTraza_(ss);
-  var orden = ["PANEL", "CPU", "BUSES", "CACHE", "MEMORIA", "ES", "PROGRAMAS", "TRACE", "_ESTADO"];
+  var ocultar = ["CPU", "BUSES", "CACHE", "MEMORIA", "ES"];
   var i;
+  for (i = 0; i < ocultar.length; i++) simOcultarSiExiste_(ss, ocultar[i]);
+  var orden = ["PANEL", "PROGRAMAS", "TRACE"];
   for (i = 0; i < orden.length; i++) {
     var h = ss.getSheetByName(orden[i]);
-    if (h) ss.setActiveSheet(h);
-    ss.moveActiveSheet(i + 1);
+    if (h) {
+      ss.setActiveSheet(h);
+      ss.moveActiveSheet(i + 1);
+    }
   }
   estado.hideSheet();
   ss.setActiveSheet(ss.getSheetByName("PANEL"));
@@ -214,36 +226,160 @@ function simCheck_(hoja, fila, texto) {
 }
 
 function simPintarPanel_(ss) {
+  var previa = ss.getSheetByName("PANEL");
+  var recordar = { prog: "P1", tecla: "", va: "", valor: "" };
+  if (previa) {
+    recordar.prog = previa.getRange(9, 2).getValue() || "P1";
+    recordar.tecla = previa.getRange(11, 2).getValue();
+    recordar.va = previa.getRange(14, 2).getValue();
+    recordar.valor = previa.getRange(15, 2).getValue();
+  }
   var hoja = simHoja_(ss, "PANEL");
   simLimpiarLienzo_(hoja);
-  var filas = [
-    ["Simulador CPU simplificado", ""],
-    ["Nombre del equipo: pendiente. No se inventa un nombre oficial.", ""],
-    ["Logo: pendiente. No hay archivo oficial en esta fase.", ""],
-    ["Riesgo R1: marco 7 reservado para E/S. Solo 7 marcos son paginables.", ""],
-    ["Estado", "= _ESTADO!B" + simFilaEscalar("fase")],
-    ["Programa", "= _ESTADO!B" + simFilaEscalar("programa")],
-    ["PC", "=_ESTADO!" + simCeldaVista("pcHex")],
-    ["IR", "=_ESTADO!B" + simFilaEscalar("textoIR")],
-    ["Micro-palabra", "=_ESTADO!B" + simFilaEscalar("palabra")],
-    ["Evento", "=_ESTADO!B" + simFilaEscalar("evento")],
-    ["Page fault / aviso", "=_ESTADO!B" + simFilaEscalar("banner")],
-    ["AX", "=_ESTADO!" + simCeldaVista("axHex")],
-    ["BX", "=_ESTADO!" + simCeldaVista("bxHex")],
-    ["CX", "=_ESTADO!" + simCeldaVista("cxHex")],
-    ["DX", "=_ESTADO!" + simCeldaVista("dxHex")],
-    ["ZF CF SF", "=_ESTADO!" + simCeldaVista("flagsTxt")],
-    ["LCD", "=_ESTADO!" + simCeldaVista("lcdTexto")]
-  ];
-  simPegar_(hoja, 1, 1, filas);
+  simPegar_(hoja, 1, 1, [[
+    "Simulador CPU simplificado",
+    "Nombre y logo: pendientes. No se inventan."
+  ]]);
   simEstiloTitulo_(hoja.getRange(1, 1, 1, 2));
-  var acciones = ["Step", "Run", "Stop", "Reset", "Ensamblar", "Cargar", "Teclear", "Limpiar cola", "Editar memoria", "Preparar"];
+  simPegar_(hoja, 2, 1, [[
+    "Una sola hoja muestra CPU, buses, memoria, caché y E/S. Programas y TRACE son auxiliares.",
+    ""
+  ]]);
+  simPegar_(hoja, 4, 1, [
+    ["Controles", "Marque la casilla. El menú Simulador llama a las mismas funciones."],
+    ["Step", ""],
+    ["Run", ""],
+    ["Stop", ""],
+    ["Reset", ""],
+    ["Programa", recordar.prog || "P1"],
+    ["Cargar programa", ""],
+    ["Tecla", recordar.tecla],
+    ["Teclear", ""],
+    ["Limpiar cola", ""],
+    ["VA 0-511", recordar.va],
+    ["Valor 0-255", recordar.valor],
+    ["Editar memoria", ""]
+  ]);
+  var casillas = [5, 6, 7, 8, 10, 12, 13, 16];
   var i;
-  for (i = 0; i < acciones.length; i++) simCheck_(hoja, 19 + i, acciones[i]);
-  hoja.setColumnWidth(1, 220);
-  hoja.setColumnWidth(2, 420);
-  hoja.getRange(11, 2).setBackground("#FFCDD2");
-  simProteger_(hoja, [hoja.getRange(19, 3, acciones.length, 1)]);
+  for (i = 0; i < casillas.length; i++) {
+    hoja.getRange(casillas[i], 2).insertCheckboxes();
+    hoja.getRange(casillas[i], 2).setBackground("#C8E6C9");
+  }
+  var lista = SpreadsheetApp.newDataValidation().requireValueInList(["P1", "P2", "P3"], true).setAllowInvalid(false).build();
+  hoja.getRange(9, 2).setDataValidation(lista).setBackground("#FFF9C4");
+  hoja.getRange(11, 2).setBackground("#FFF9C4");
+  hoja.getRange(14, 2).setBackground("#FFF9C4");
+  hoja.getRange(15, 2).setBackground("#FFF9C4");
+
+  var cpu = [
+    ["CPU", "Un núcleo, un hilo. Step avanza un micro-paso.", "", ""],
+    ["PC elige la instrucción. MAR la pide. MDR recibe el byte. ALU opera AX-DX.", "", "", ""],
+    ["Registro", "Valor", "Binario", "Unidad"],
+    ["PC", simRefVista_("pcHex"), simRefVista_("pcBin"), "9 bits, virtual"],
+    ["MAR", simRefVista_("marHex"), simRefVista_("marBin"), "9 bits, virtual"],
+    ["MDR", simRefVista_("mdrHex"), simRefVista_("mdrBin"), "8 bits"],
+    ["IR", simRefEsc_("textoIR"), simRefVista_("irHex"), "16 bits"],
+    ["AX", simRefVista_("axHex"), simRefVista_("axBin"), "8 bits"],
+    ["BX", simRefVista_("bxHex"), simRefVista_("bxBin"), "8 bits"],
+    ["CX", simRefVista_("cxHex"), simRefVista_("cxBin"), "8 bits"],
+    ["DX", simRefVista_("dxHex"), simRefVista_("dxBin"), "8 bits"],
+    ["ZF CF SF", simRefVista_("flagsTxt"), "", "3 banderas"],
+    ["Fase", simRefEsc_("fase"), "", "micro-paso"],
+    ["Micro-palabra", simRefEsc_("palabra"), simRefEsc_("bits"), "28 bits"],
+    ["Evento", simRefEsc_("evento"), "", "texto del paso"],
+    ["Aviso", simRefEsc_("banner"), "", "PAGE FAULT en texto"]
+  ];
+  simPegar_(hoja, 4, 4, cpu);
+  simEstiloTitulo_(hoja.getRange(4, 4, 1, 4));
+  hoja.getRange(6, 4, 1, 4).setBackground("#1565C0").setFontColor("#FFFFFF");
+  hoja.getRange(7, 5, 10, 2).setBackground("#E3F2FD");
+
+  var buses = [
+    ["Buses", "Un emisor por bus. ZZ = alta impedancia.", "", "", ""],
+    ["Dirección interna 9 bits. Externa 8 bits, ya física.", "", "", "", ""],
+    ["Bus", "Bits", "Emisor", "Valor", "Cómo leerlo"],
+    ["Dirección interna", "9", simRefEsc_("emDirI"), simRefVista_("dirI"), "ZZ o HEX de 9 bits"],
+    ["Datos internos", "8", simRefEsc_("emDatI"), simRefVista_("datI"), "ZZ o HEX de 8 bits"],
+    ["Dirección externa", "8", simRefEsc_("emDirE"), simRefVista_("dirE"), "física, después de la MMU"],
+    ["Datos externos", "8", simRefEsc_("emDatE"), simRefVista_("datE"), "RAM, teclado o MDR"],
+    ["Read", "1", simRefEsc_("rd"), "", "1 activo, 0 inactivo"],
+    ["Write", "1", simRefEsc_("wr"), "", "1 activo, 0 inactivo"],
+    ["Clock", "1", simRefEsc_("ck"), "", "1 pulso, 0 reposo"],
+    ["IO", "1", simRefEsc_("io"), "", "1 si IN u OUT"]
+  ];
+  simPegar_(hoja, 4, 9, buses);
+  simEstiloTitulo_(hoja.getRange(4, 9, 1, 5));
+  hoja.getRange(6, 9, 1, 5).setBackground("#2E7D32").setFontColor("#FFFFFF");
+  hoja.getRange(7, 12, 4, 1).setBackground("#E8F5E9");
+
+  var memoria = [
+    ["Memoria", "MMU, marcos y swap", "", "", "", "", "", ""],
+    ["Riesgo: la RAM tiene 8 marcos de 32 B, pero solo 0-6 son paginables. El marco 7 es E/S fija (VPN 15). No se afirma la nota plena de G3/G4 sin el docente.", "", "", "", "", "", "", ""],
+    ["VPN = VA[8:5]. Offset = VA[4:0]. PA = PFN × 32 + offset. Un fallo carga 32 B y reintenta con el PC quieto.", "", "", "", "", "", "", ""],
+    ["VPN", "P", "PFN", "Dirty", "Ref", "Orden", "Uso", "Fija"]
+  ];
+  var f;
+  for (f = 0; f < 16; f++) {
+    var filaPag = [String(f)];
+    var c;
+    for (c = 0; c < 7; c++) filaPag.push("=_ESTADO!" + simColumna_(c + 1) + (SIM_FILA_PAG + f));
+    memoria.push(filaPag);
+  }
+  simPegar_(hoja, 22, 1, memoria);
+  simEstiloTitulo_(hoja.getRange(22, 1, 1, 8));
+  hoja.getRange(23, 1, 2, 8).setBackground("#FFF3E0");
+  hoja.getRange(25, 1, 1, 8).setBackground("#EF6C00").setFontColor("#FFFFFF");
+
+  var cache = [
+    ["Caché", "Después de la MMU. L1I solo código, L1D datos, L2 unificada.", "", "", "", "", "", "", "", "", "", ""],
+    ["L1: 1 línea × 8 B. L2: 4 × 8 B, directa. Tasa = hits / (hits+misses). El mantenimiento no entra en la tasa.", "", "", "", "", "", "", "", "", "", "", ""],
+    ["Línea", "V", "Tag", "Base", "B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7"]
+  ];
+  for (f = 0; f < 6; f++) {
+    var linea = [];
+    for (c = 0; c < 12; c++) linea.push("=_ESTADO!" + simColumna_(c + 1) + (SIM_FILA_CACHE + f));
+    cache.push(linea);
+  }
+  cache.push(["L1I tasa", simRefVista_("l1iTasa"), "L1D lecturas", simRefVista_("l1dRTasa"), "L1D escrituras", simRefVista_("l1dWTasa"), "L1D total", simRefVista_("l1dTasa"), "L2", simRefVista_("l2Tasa"), "Mant.", simRefEsc_("mant")]);
+  simPegar_(hoja, 22, 10, cache);
+  simEstiloTitulo_(hoja.getRange(22, 10, 1, 12));
+  hoja.getRange(24, 10, 1, 12).setBackground("#6A1B9A").setFontColor("#FFFFFF");
+  hoja.getRange(25, 10, 6, 12).setBackground("#F3E5F5");
+
+  var teclado = [];
+  var lcd = [];
+  for (f = 0; f < 8; f++) {
+    teclado.push("=_ESTADO!" + simColumna_(f + 1) + (SIM_FILA_RAM + 15));
+    lcd.push("=_ESTADO!" + simColumna_(f + 1) + "76");
+  }
+  simPegar_(hoja, 44, 1, [
+    ["E/S", "IN lee la cola. OUT escribe el LCD. Ninguno pasa por la caché.", "", "", "", "", "", ""],
+    ["Teclado VA 1F0H-1F7H = PA F0H-F7H. LCD VA 1F8H-1FFH = PA F8H-FFH. Cola vacía: 00H.", "", "", "", "", "", "", ""],
+    ["Cabeza / cola / cuenta", simRefEsc_("kbdHead"), simRefEsc_("kbdTail"), simRefEsc_("kbdCount"), "Cursor LCD", simRefEsc_("lcdCursor"), "IO", simRefEsc_("io")],
+    ["F0", "F1", "F2", "F3", "F4", "F5", "F6", "F7"],
+    teclado,
+    ["LCD", "", "", "", "", "", "", ""],
+    lcd
+  ]);
+  simEstiloTitulo_(hoja.getRange(44, 1, 1, 8));
+  hoja.getRange(47, 1, 1, 8).setBackground("#00695C").setFontColor("#FFFFFF");
+  hoja.getRange(50, 1, 1, 8).setFontSize(16).setBackground("#E0F2F1").setHorizontalAlignment("center");
+
+  var zz = SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo("ZZ").setBackground("#B0BEC5").setRanges([hoja.getRange(7, 12, 4, 1)]).build();
+  var aviso = SpreadsheetApp.newConditionalFormatRule().whenTextContains("PAGE FAULT").setBackground("#FFCDD2").setRanges([hoja.getRange(19, 5)]).build();
+  var activo = SpreadsheetApp.newConditionalFormatRule().whenNumberEqualTo(1).setBackground("#C8E6C9").setRanges([hoja.getRange(11, 11, 4, 1)]).build();
+  hoja.setConditionalFormatRules([zz, aviso, activo]);
+  hoja.setColumnWidth(1, 170);
+  hoja.setColumnWidth(2, 160);
+  hoja.setColumnWidth(4, 130);
+  hoja.setColumnWidth(5, 220);
+  hoja.setFrozenRows(1);
+  simProteger_(hoja, [
+    hoja.getRange(5, 2, 4, 1),
+    hoja.getRange(9, 2, 7, 1),
+    hoja.getRange(16, 2)
+  ]);
 }
 
 function simPintarCpu_(ss) {
@@ -418,10 +554,11 @@ function simPintarEs_(ss) {
 
 function simPintarProgramas_(ss) {
   var hoja = simHoja_(ss, "PROGRAMAS");
-  simLimpiarLienzo_(hoja);
+  if (String(hoja.getRange(4, 1).getValue()) === "Línea") return hoja;
+  simDescombinar_(hoja);
   simPegar_(hoja, 1, 1, [
     ["Programa", "P1"],
-    ["Riesgo R1", "El marco 7 no es paginable. P3 no usa la VPN 15."]
+    ["Editor auxiliar. Cargar también está en PANEL. No se borra el texto ya escrito.", ""]
   ]);
   var regla = SpreadsheetApp.newDataValidation().requireValueInList(["P1", "P2", "P3"], true).setAllowInvalid(false).build();
   hoja.getRange(1, 2).setDataValidation(regla);
@@ -430,7 +567,7 @@ function simPintarProgramas_(ss) {
   var nums = [];
   var i;
   for (i = 0; i < 40; i++) nums.push([i + 1]);
-  simPegar_(hoja, 5, 1, nums);
+  if (!String(hoja.getRange(5, 1).getValue() || "")) simPegar_(hoja, 5, 1, nums);
   simPegar_(hoja, 4, 6, [["VA", "Bytes", "Texto"]]);
   simEstiloTitulo_(hoja.getRange(4, 6, 1, 3));
   hoja.getRange(4, 10).setValue("Errores").setFontWeight("bold");
@@ -600,9 +737,20 @@ function simResetHoja() {
   });
 }
 
+function simCargarDesdePanel() {
+  var ss = simLibro_();
+  var panel = ss.getSheetByName("PANEL");
+  var id = panel ? String(panel.getRange(9, 2).getValue() || "P1") : "P1";
+  var prog = simHoja_(ss, "PROGRAMAS");
+  prog.getRange(1, 2).setValue(id);
+  if (!simEditorTexto_(ss).trim()) simTraerPrograma();
+  return simCargarHoja();
+}
+
 function simTeclearHoja() {
   var ss = simLibro_();
-  var texto = ss.getSheetByName("ES").getRange(1, 2).getValue();
+  var panel = ss.getSheetByName("PANEL");
+  var texto = panel ? panel.getRange(11, 2).getValue() : "";
   simConCandado_(function () {
     var e = simLeerEstado_(ss);
     var r = simTeclear(e, texto);
@@ -623,9 +771,9 @@ function simLimpiarColaHoja() {
 
 function simEditarHoja() {
   var ss = simLibro_();
-  var mem = ss.getSheetByName("MEMORIA");
-  var va = Number(mem.getRange(24, 2).getValue());
-  var valor = Number(mem.getRange(25, 2).getValue());
+  var panel = ss.getSheetByName("PANEL");
+  var va = Number(panel.getRange(14, 2).getValue());
+  var valor = Number(panel.getRange(15, 2).getValue());
   if (!(va >= 0 && va <= 511) || !(valor >= 0 && valor <= 255)) {
     throw new Error("VA 0..511 y valor 0..255.");
   }
@@ -642,8 +790,8 @@ function simProbarEnCopia() {
   var r = simProbarTodo();
   var panel = ss.getSheetByName("PANEL");
   if (panel) {
-    panel.getRange(30, 1).setValue(r.ok ? "Pruebas locales dentro del script: OK" : "Pruebas con fallos");
-    panel.getRange(31, 1).setValue(r.fallos.join(" | ").slice(0, 500));
+    panel.getRange(52, 1).setValue(r.ok ? "Pruebas en memoria: OK" : "Pruebas con fallos");
+    panel.getRange(52, 2).setValue(r.fallos.join(" | ").slice(0, 500));
   }
   return r.ok ? "OK " + r.total : r.fallos.join("\n");
 }
@@ -653,7 +801,7 @@ function onOpen() {
     .addItem("Preparar esta copia", "simPrepararEstaCopia")
     .addItem("Traer programa al editor", "simTraerPrograma")
     .addItem("Ensamblar", "simEnsamblarHoja")
-    .addItem("Cargar", "simCargarHoja")
+    .addItem("Cargar", "simCargarDesdePanel")
     .addSeparator()
     .addItem("Step", "simStep")
     .addItem("Run", "simRun")
@@ -669,25 +817,16 @@ function onOpen() {
 
 function onEdit(e) {
   if (!e || !e.range || String(e.value) !== "TRUE") return;
-  var hoja = e.range.getSheet().getName();
-  if (hoja === "MEMORIA" && e.range.getA1Notation() === "B1") {
-    var va = Number(e.range.getValue());
-    if (va >= 0 && va <= 511) {
-      e.range.getSheet().getRange(2, 2).setValue(simHex(va, 3) + "H → VPN " + (va >> 5) + " offset " + (va & 31));
-    }
-    return;
-  }
-  if (hoja !== "PANEL" || e.range.getColumn() !== 3) return;
+  if (e.range.getSheet().getName() !== "PANEL" || e.range.getColumn() !== 2) return;
   var fila = e.range.getRow();
+  if (fila !== 5 && fila !== 6 && fila !== 7 && fila !== 8 && fila !== 10 && fila !== 12 && fila !== 13 && fila !== 16) return;
   e.range.setValue(false);
-  if (fila === 19) simStep();
-  else if (fila === 20) simRun();
-  else if (fila === 21) simStop();
-  else if (fila === 22) simResetHoja();
-  else if (fila === 23) simEnsamblarHoja();
-  else if (fila === 24) simCargarHoja();
-  else if (fila === 25) simTeclearHoja();
-  else if (fila === 26) simLimpiarColaHoja();
-  else if (fila === 27) simEditarHoja();
-  else if (fila === 28) simPrepararEstaCopia();
+  if (fila === 5) simStep();
+  else if (fila === 6) simRun();
+  else if (fila === 7) simStop();
+  else if (fila === 8) simResetHoja();
+  else if (fila === 10) simCargarDesdePanel();
+  else if (fila === 12) simTeclearHoja();
+  else if (fila === 13) simLimpiarColaHoja();
+  else if (fila === 16) simEditarHoja();
 }
