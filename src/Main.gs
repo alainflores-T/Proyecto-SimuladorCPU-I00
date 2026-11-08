@@ -248,7 +248,7 @@ function simRefUnidos_(fila, desdeCol, n, conEspacio) {
   var s = "=";
   var i;
   for (i = 0; i < n; i++) {
-    if (i) s += conEspacio ? "&\" \"" : "&";
+    if (i) s += conEspacio ? "&\" \"&" : "&";
     s += "_ESTADO!" + simColumna_(desdeCol + i) + fila;
   }
   return s;
@@ -322,9 +322,9 @@ function simPintarPanel_(ss) {
     ["Valor 0-255", recordar.valor],
     ["Editar memoria", ""]
   ]);
-  hoja.getRange(6, 3).setValue("Cada 20 pasos; Stop entre grupos.");
-  hoja.getRange(10, 3).setValue("Catálogo. No toca el editor.");
-  hoja.getRange(11, 3).setValue("ENTER o texto de hasta 8.");
+  hoja.getRange(6, 3).setValue("Cada 20 pasos; Stop entre grupos.").setWrap(true);
+  hoja.getRange(10, 3).setValue("Catálogo. No toca el editor.").setWrap(true);
+  hoja.getRange(11, 3).setValue("ENTER o texto de hasta 8.").setWrap(true);
   var casillas = [5, 6, 7, 8, 10, 12, 13, 16];
   var i;
   for (i = 0; i < casillas.length; i++) {
@@ -391,6 +391,13 @@ function simPintarPanel_(ss) {
     for (c = 0; c < 7; c++) filaPag.push("=_ESTADO!" + simColumna_(c + 1) + (SIM_FILA_PAG + f));
     memoria.push(filaPag);
   }
+  simPegar_(hoja, 33, 1, [[
+    "VM activa, VPN 15",
+    "=_ESTADO!" + simColumna_(1) + (SIM_FILA_PAG + 15),
+    "presente, marco",
+    "=_ESTADO!" + simColumna_(2) + (SIM_FILA_PAG + 15),
+    "", "", "", ""
+  ]]);
   simPegar_(hoja, 34, 1, memoria);
 
   var ram = [
@@ -464,6 +471,7 @@ function simPintarPanel_(ss) {
   hoja.getRange(78, 1, 6, 8).setBackground("#F3E5F5");
   hoja.getRange(92, 1, 1, 8).setFontSize(16).setBackground("#E0F2F1").setHorizontalAlignment("center");
   hoja.getRange(4, 1).setFontWeight("bold");
+  hoja.getRange(33, 1, 1, 4).setBackground("#E8F5E9");
 
   simUnir_(hoja, 1, 1, 1, 8);
   simUnir_(hoja, 2, 1, 1, 8);
@@ -481,6 +489,9 @@ function simPintarPanel_(ss) {
   if (hoja.setRowHeight) {
     hoja.setRowHeight(2, 32);
     hoja.setRowHeight(5, 36);
+    hoja.setRowHeight(6, 36);
+    hoja.setRowHeight(10, 36);
+    hoja.setRowHeight(11, 36);
     hoja.setRowHeight(20, 32);
     hoja.setRowHeight(23, 32);
     hoja.setRowHeight(35, 64);

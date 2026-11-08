@@ -32,7 +32,9 @@ function simCrearLibroPrueba(opciones) {
       clear: function () { valores = {}; },
       setFrozenRows: function () {},
       setColumnWidth: function () {},
-      setRowHeight: function () {},
+      alturas: {},
+      envolturas: {},
+      setRowHeight: function (fila, alto) { hoja.alturas[fila] = alto; },
       casillas: checks,
       validaciones: validaciones,
       setConditionalFormatRules: function (lista) { formatos = lista || []; },
@@ -116,7 +118,14 @@ function simCrearLibroPrueba(opciones) {
           setFontSize: function () { return rango; },
           setHorizontalAlignment: function () { return rango; },
           setNumberFormat: function () { return rango; },
-          setWrap: function () { return rango; },
+          setWrap: function () {
+            var r;
+            var c;
+            for (r = 0; r < nf; r++) {
+              for (c = 0; c < nc; c++) hoja.envolturas[clave(fila + r, col + c)] = true;
+            }
+            return rango;
+          },
           setDataValidation: function (regla) { validaciones[clave(fila, col)] = regla; return rango; },
           clearDataValidations: function () {
             var r;
@@ -278,6 +287,40 @@ function simProbarSetupHoja() {
   afirmar(String(panel.getRange(34, 1).getValue()) === "Memoria virtual", "la tabla de páginas está en la hoja principal");
   afirmar(String(panel.getRange(55, 1).getValue()) === "RAM física", "la RAM de 256 bytes está en la hoja principal");
   afirmar(String(panel.getRange(58, 2).getValue()).indexOf("&") > 0, "cada fila de RAM concatena sus bytes");
+  var rota = '" "_ESTADO!';
+  var junta = '" "&_ESTADO!';
+  function simCuenta_(texto, token) {
+    var n = 0;
+    var i = 0;
+    var s = String(texto);
+    while ((i = s.indexOf(token, i)) >= 0) { n++; i += token.length; }
+    return n;
+  }
+  var filaRam;
+  for (filaRam = 58; filaRam <= 73; filaRam++) {
+    var formulaRam = String(panel.getRange(filaRam, 2).getValue());
+    var filaEstado = SIM_FILA_RAM + (filaRam - 58);
+    afirmar(formulaRam.indexOf(rota) < 0, "B" + filaRam + " no deja el espacio sin &");
+    afirmar(simCuenta_(formulaRam, junta) === 15, "B" + filaRam + " une 16 bytes con & a cada lado");
+    afirmar(formulaRam.indexOf("=_ESTADO!A" + filaEstado) === 0, "B" + filaRam + " empieza en A" + filaEstado);
+    afirmar(formulaRam.indexOf("_ESTADO!P" + filaEstado) === formulaRam.length - ("_ESTADO!P" + filaEstado).length, "B" + filaRam + " termina en P" + filaEstado);
+    afirmar(formulaRam.indexOf("IFERROR") < 0, "B" + filaRam + " no oculta el error");
+  }
+  var filaCache;
+  for (filaCache = 78; filaCache <= 83; filaCache++) {
+    var formulaCache = String(panel.getRange(filaCache, 5).getValue());
+    var baseCache = SIM_FILA_CACHE + (filaCache - 78);
+    afirmar(formulaCache.indexOf(rota) < 0, "E" + filaCache + " no deja el espacio sin &");
+    afirmar(simCuenta_(formulaCache, junta) === 7, "E" + filaCache + " une 8 bytes con & a cada lado");
+    afirmar(formulaCache.indexOf("=_ESTADO!E" + baseCache) === 0, "E" + filaCache + " empieza en E" + baseCache);
+    afirmar(formulaCache.indexOf("_ESTADO!L" + baseCache) === formulaCache.length - ("_ESTADO!L" + baseCache).length, "E" + filaCache + " termina en L" + baseCache);
+  }
+  var palabra = String(panel.getRange(17, 6).getValue());
+  afirmar(palabra.indexOf('"') < 0 && simCuenta_(palabra, "&_ESTADO!") === 27, "la palabra de 28 bits no usa el separador con espacio");
+  afirmar(String(panel.getRange(33, 1).getValue()).indexOf("VM activa") === 0, "el panel dice que la VM está activa");
+  afirmar(String(panel.getRange(33, 2).getValue()) === "=_ESTADO!A" + (SIM_FILA_PAG + 15), "el indicador lee la presencia de la VPN 15");
+  afirmar(String(panel.getRange(33, 4).getValue()) === "=_ESTADO!B" + (SIM_FILA_PAG + 15), "el indicador lee el marco de la VPN 15");
+  afirmar(panel.envolturas["6,3"] === true && panel.alturas[6] >= 36, "la ayuda de Run cabe en su columna");
   afirmar(String(panel.getRange(75, 1).getValue()) === "Caché", "la caché está en la hoja principal");
   afirmar(String(panel.getRange(86, 1).getValue()) === "E/S", "la E/S está en la hoja principal");
   afirmar(String(panel.getRange(35, 1).getValue()).indexOf("7") >= 0, "el riesgo de 7 marcos paginables es visible");
