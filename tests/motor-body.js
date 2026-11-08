@@ -1,0 +1,195 @@
+function check(name, cond, detail) {
+  results.push({ name: name, ok: !!cond, detail: detail || "" });
+  console.log((cond ? "PASS" : "FAIL") + " | " + name + (detail ? " | " + detail : ""));
+}
+
+var informe = prepararSimulador();
+check("prepararSimulador sin fallos", informe.every(function (linea) { return linea.indexOf(": ok") !== -1; }), informe.join(" || "));
+catalogInitialize();
+var directory = book.getSheetByName("Directory");
+check("catálogo inicializado", !!directory && directory.getRange("B1").getValue() !== "", String(directory && directory.getRange("B1").getValue()));
+
+var progDir = path.join(root, "programs");
+["arithmetic-ax-dx.asm", "keyboard-lcd-echo.asm", "scattered-access.asm"].forEach(function (file) {
+  var text = fs.readFileSync(path.join(progDir, file), "utf8");
+  var asm = assemble(text);
+  var rt = roundTripTest(text);
+  var entries = text.replace(/\r/g, "").split("\n").map(editorLineFromSource);
+  var ed = editorCheckProgram(entries);
+  check("assemble " + file, asm.ok, (asm.errors || []).join("; "));
+  check("roundTrip " + file, rt.ok, rt.ok ? "" : JSON.stringify(rt.mismatches).slice(0, 240));
+  check("editor " + file, ed.ok, (ed.errors || []).join(" | "));
+});
+var cat = catalogBuiltinPrograms();
+cat.forEach(function (p) {
+  var disk = fs.readFileSync(path.join(progDir, p.file), "utf8").replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+  check("catálogo = archivo " + p.file, disk === p.lines.join("\n").trim());
+});
+
+function hoja() { return book.getSheetByName("Hoja 1"); }
+function reg(nombre) { return String(hoja().getRange(REGISTROS_GENERALES[nombre]).getValue()); }
+function presentes() {
+  var n = 0;
+  var i;
+  for (i = 0; i < 16; i++) if (String(book.getSheetByName("TablaPaginas").getRange(3 + i, 2).getValue()) === "1") n++;
+  return n;
+}
+function correrHastaHalt(maxLotes) {
+  var inicio = uiComenzarEjecucion();
+  if (!inicio.ok) return inicio;
+  var lotes = 0;
+  var ultimo = inicio;
+  while (lotes < maxLotes) {
+    ultimo = uiLoteRun(inicio.token);
+    lotes++;
+    if (!ultimo.ok || !ultimo.continuar) break;
+  }
+  return ultimo;
+}
+function cargar(nombre) {
+  directory.getRange("B1").setValue(nombre);
+  alerts.length = 0;
+  var r = loadSelectedProgram();
+  return r;
+}
+
+// Contención: el destino no cambia y luego se recupera.
+hoja().getRange(REG_MDR).setValue("11H");
+limpiarSenalesBuffers();
+marcarEnable("RAM", "11H", "datos");
+var lanzo = false;
+var msg = "";
+try {
+  transfer(busDatos, { name: "KBD", value: "22H" }, ["MDR"], hoja());
+} catch (e) {
+  lanzo = true;
+  msg = e.message;
+}
+check("contención lanza antes de escribir MDR", lanzo && String(hoja().getRange(REG_MDR).getValue()) === "11H", msg + " mdr=" + hoja().getRange(REG_MDR).getValue());
+var rec = recuperarContencion(hoja());
+check("recuperación deja READY y no toca MDR", rec.ok && String(hoja().getRange(CPU_STATE).getValue()) === "READY" && String(hoja().getRange(REG_MDR).getValue()) === "11H");
+check("bus de datos queda en ZZ", String(hoja().getRange(BUS_EXT_DATA).getValue()) === "ZZ", String(hoja().getRange(BUS_EXT_DATA).getValue()));
+
+// Programa 1 por el cargador y el ciclo reales.
+var c1 = cargar("Arithmetic AX..DX");
+check("LOAD aritmética", c1 && c1.ok, JSON.stringify(c1) + " " + alerts.join(" | "));
+check("FIFO visible al cargar", politicaGuardada_() === "FIFO", String(politicaGuardada_()));
+var antes = (leerContadoresCache().eventos || []).length;
+var f2 = cpuApplyVirtualFetch2(hoja());
+var mid = (leerContadoresCache().eventos || []).length;
+var f3 = cpuApplyVirtualFetch3(hoja());
+var fin = (leerContadoresCache().eventos || []).length;
+check("FETCH_2 lee y FETCH_3 no repite la caché", f2 && f2.ok && f3 && f3.ok && fin === mid && mid > antes, "antes=" + antes + " mid=" + mid + " fin=" + fin);
+reiniciarCpu();
+var ramMuestra = readPhysical(0);
+var fin1 = correrHastaHalt(80);
+check("aritmética llega a HALT", String(hoja().getRange(CPU_STATE).getValue()) === "HALT", JSON.stringify(fin1));
+check("aritmética AX BX CX DX ZF", reg("AX") === "0CH" && reg("BX") === "04H" && reg("CX") === "00H" && reg("DX") === "04H" && hoja().getRange(FLAG_ZF).getValue() == 1,
+  JSON.stringify({ AX: reg("AX"), BX: reg("BX"), CX: reg("CX"), DX: reg("DX"), ZF: hoja().getRange(FLAG_ZF).getValue() }));
+var cache1 = leerContadoresCache();
+check("aritmética tuvo miss y luego hit", cache1.l1i.misses >= 1 && cache1.l1i.hits >= 1, JSON.stringify(cache1.l1i));
+check("RESET conserva la RAM y pone AX en 00H", (function () {
+  var antesRam = readPhysical(0);
+  reiniciarCpu();
+  return reg("AX") === "00H" && String(hoja().getRange(CPU_STATE).getValue()) === "READY" && String(readPhysical(0)) === String(antesRam);
+})(), "ax=" + reg("AX") + " ram0=" + readPhysical(0));
+
+// CLEAR conserva el swap y deja las páginas ausentes.
+var swap0 = readSwap(0)[0];
+limpiarMaquina();
+check("CLEAR vacía presencia y conserva el primer byte del swap", presentes() === 0 && String(readSwap(0)[0]) === String(swap0) && readPhysical(0) === "",
+  "presentes=" + presentes() + " swap0=" + readSwap(0)[0] + " ram0=" + JSON.stringify(readPhysical(0)));
+
+// Eco con la VM encendida y la cola en la RAM dedicada.
+var c2 = cargar("Keyboard to LCD");
+check("LOAD eco", c2 && c2.ok, JSON.stringify(c2) + " " + alerts.join(" | "));
+check("memoria virtual activa junto con E/S", memoriaVirtualActiva() && ioCanUseRam().ok, ioCanUseRam().reason || "");
+var i;
+for (i = 0; i < 8; i++) {
+  var enq = kbdEnqueueByte(65 + i);
+  if (!enq.ok) check("encolar " + i, false, enq.reason);
+}
+check("cola de 8 no usa la dirección F0H de los marcos", (function () {
+  var q = esRamLeerRegion({ start: 0, bytes: 8 });
+  return q.ok && q.bytes[0] === 65 && readPhysical(0xF0) !== 65;
+})(), "F0=" + readPhysical(0xF0));
+var fin2 = correrHastaHalt(120);
+check("eco llega a HALT", String(hoja().getRange(CPU_STATE).getValue()) === "HALT", JSON.stringify(fin2));
+var lcd = esRamLeerRegion({ start: 8, bytes: 8 });
+check("LCD muestra ABCDEFGH", lcd.ok && lcd.bytes.join(",") === "65,66,67,68,69,70,71,72", lcd.ok ? lcd.bytes.join(",") : lcd.reason);
+check("ocho marcos siguen siendo el espacio paginable", POLITICA_ES.marcos === 8 && POLITICA_ES.solapaMarcos === false && RESERVA_ES === null);
+
+// Programa disperso: fallos, reemplazo y misses por el ciclo real.
+limpiarMaquina();
+var c3 = cargar("Scattered accesses");
+check("LOAD disperso", c3 && c3.ok, JSON.stringify(c3) + " " + alerts.join(" | "));
+var fin3 = correrHastaHalt(160);
+check("disperso llega a HALT", String(hoja().getRange(CPU_STATE).getValue()) === "HALT", JSON.stringify(fin3));
+check("disperso registros", reg("AX") === "03H" && reg("BX") === "02H" && reg("CX") === "03H" && reg("DX") === "04H",
+  JSON.stringify({ AX: reg("AX"), BX: reg("BX"), CX: reg("CX"), DX: reg("DX") }));
+check("nunca hay más de 8 páginas presentes", presentes() <= 8 && presentes() >= 1, "presentes=" + presentes());
+var cache3 = leerContadoresCache();
+check("disperso acumula misses de datos", cache3.l1d.misses >= 1 && cache3.l2.misses >= 1, JSON.stringify({ l1d: cache3.l1d, l2: cache3.l2 }));
+var logText = "";
+var log = book.getSheetByName("LOG");
+if (log) {
+  var last = log.getLastRow();
+  var vals = last ? log.getRange(1, 3, last, 1).getValues() : [];
+  logText = vals.map(function (row) { return String(row[0]); }).join("\n");
+}
+check("el log registró page faults", logText.indexOf("PAGE FAULT") !== -1, logText.split("\n").filter(function (l) { return l.indexOf("PAGE FAULT") !== -1; }).slice(0, 4).join(" || "));
+var sucia = false;
+for (i = 0; i < 16; i++) if (String(book.getSheetByName("TablaPaginas").getRange(3 + i, 4).getValue()) === "1") sucia = true;
+check("alguna página residente queda dirty", sucia);
+var extras = ["020H", "080H", "0C0H", "100H", "140H", "180H", "1A0H"];
+var ei;
+var extraErr = "";
+for (ei = 0; ei < extras.length; ei++) {
+  hoja().getRange(REG_MAR).setValue(extras[ei]);
+  try { leerMemoriaIntegrada(hoja(), "dato"); }
+  catch (eExtra) { extraErr = eExtra.message; break; }
+}
+var log2 = "";
+if (log) {
+  var last2 = log.getLastRow();
+  log2 = log.getRange(1, 3, last2, 1).getValues().map(function (row) { return String(row[0]); }).join("\n");
+}
+check("un desalojo sucio hace write-back de 32 bytes", log2.indexOf("write-back") !== -1, (extraErr ? extraErr + " || " : "") + log2.split("\n").filter(function (l) { return l.indexOf("write-back") !== -1 || l.indexOf("PAGE FAULT") !== -1; }).slice(-3).join(" || "));
+check("tras más fallos siguen 8 páginas presentes", presentes() === 8, "presentes=" + presentes());
+
+// Fronteras de traducción: 0 y 511 caben; 512 no.
+var t0 = describirDireccionMMU_ = null;
+try {
+  var borde = translate(0);
+  check("traducir 0 cuando está presente", borde && typeof borde.fisica === "number", JSON.stringify(borde));
+} catch (e0) {
+  check("traducir 0 cuando está presente", false, e0.message);
+}
+var rechaza512 = false;
+try { translate(512); } catch (e512) { rechaza512 = String(e512.message).indexOf("0..511") !== -1; }
+check("dirección 512 rechazada", rechaza512);
+
+// Un segundo RUN con token vigente no arranca otro ciclo.
+var primero = uiComenzarEjecucion();
+var segundo = uiComenzarEjecucion();
+check("doble RUN rechazado", primero.ok && segundo.ok === false, segundo.reason);
+uiPause();
+var lotePausa = uiLoteRun(primero.token);
+check("PAUSE corta el lote sin micro-pasos", lotePausa.ok && lotePausa.pausa && lotePausa.pasos === 0, JSON.stringify(lotePausa));
+
+// Snapshot coherente con las celdas.
+var snap = uiSnapshot();
+check("snapshot refleja AX y el estado", snap.ax === reg("AX") && snap.estado === String(hoja().getRange(CPU_STATE).getValue()), JSON.stringify({ ax: snap.ax, estado: snap.estado }));
+check("snapshot de buses no inventa un conductor si está en ZZ", !(snap.buses.datos === "ZZ" && snap.buses.conductorDatos && snap.buses.conductorDatos !== "—" && snap.buses.conductorDatos !== ""), JSON.stringify(snap.buses));
+
+// HEX de la palabra, incluido IN/OUT, sale del encoder.
+var filas = filasTablaMicrocodigo();
+function fila(nombre) {
+  var i;
+  for (i = 0; i < filas.length; i++) if (filas[i][0] === nombre) return filas[i][3];
+  return "";
+}
+check("HEX MOV reg", fila("MOV (reg)") === "004800H", fila("MOV (reg)"));
+check("HEX IN", fila("IN") === hexDeLista(["IO", "En_KBD", "Ld_AX"]));
+check("HEX OUT", fila("OUT") === hexDeLista(["IO", "Mem_W", "En_AX", "Ld_LCD"]));
+check("la tabla tiene IN y OUT", fila("IN") !== "" && fila("OUT") !== "");

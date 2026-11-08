@@ -1,0 +1,286 @@
+{
+  "syntaxFail": 0,
+  "results": [
+    {
+      "name": "sintaxis de todos los .gs",
+      "ok": true,
+      "detail": "fallos=0"
+    },
+    {
+      "name": "prepararSimulador sin fallos",
+      "ok": true,
+      "detail": "marcos: ok || swap: ok || tabla: ok || reemplazo: ok || cache: ok || es: ok || buses: ok || microcodigo: ok"
+    },
+    {
+      "name": "catálogo inicializado",
+      "ok": true,
+      "detail": "Arithmetic AX..DX"
+    },
+    {
+      "name": "assemble arithmetic-ax-dx.asm",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "roundTrip arithmetic-ax-dx.asm",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "editor arithmetic-ax-dx.asm",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "assemble keyboard-lcd-echo.asm",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "roundTrip keyboard-lcd-echo.asm",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "editor keyboard-lcd-echo.asm",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "assemble scattered-access.asm",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "roundTrip scattered-access.asm",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "editor scattered-access.asm",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "catálogo = archivo arithmetic-ax-dx.asm",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "catálogo = archivo keyboard-lcd-echo.asm",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "catálogo = archivo scattered-access.asm",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "catálogo = archivo carry-memory.asm",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "catálogo = archivo accumulator-loop.asm",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "catálogo = archivo count-to-five.asm",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "catálogo = archivo compare-store.asm",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "catálogo = archivo compare-double-hlt.asm",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "contención lanza antes de escribir MDR",
+      "ok": true,
+      "detail": "CONTENCIÓN DE BUS (datos): RAM y KBD tienen En=1 a la vez mdr=11H"
+    },
+    {
+      "name": "recuperación deja READY y no toca MDR",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "bus de datos queda en ZZ",
+      "ok": true,
+      "detail": "ZZ"
+    },
+    {
+      "name": "LOAD aritmética",
+      "ok": true,
+      "detail": "{\"ok\":true,\"program\":\"Arithmetic AX..DX\",\"vpns\":[0]} "
+    },
+    {
+      "name": "FIFO visible al cargar",
+      "ok": true,
+      "detail": "FIFO"
+    },
+    {
+      "name": "FETCH_2 lee y FETCH_3 no repite la caché",
+      "ok": true,
+      "detail": "antes=0 mid=4 fin=4"
+    },
+    {
+      "name": "aritmética llega a HALT",
+      "ok": true,
+      "detail": "{\"ok\":true,\"pausa\":false,\"continuar\":false,\"pasos\":3,\"estado\":\"HALT\",\"snapshot\":{\"estado\":\"HALT\",\"pc\":\"14H\",\"ir\":\"HLT\",\"mar\":\"13H\",\"mdr\":\"FF\",\"ax\":\"0CH\",\"bx\":\"04H\",\"cx\":\"00H\",\"dx\":\"04H\",\"zf\":1,\"cf\":0,\"sf\":0,\"alu\":{\"op1\":\"01H\",\"op2\":1,\"sym\":\"'-\",\"res\":\"00H\"},\"buses\":{\"interno\":\"14H\",\"conductorInterno\":\"ALU\",\"direccion\":\"13H\",\"datos\":\"FFH\",\"conductorDatos\":\"RAM\",\"rd\":0,\"wr\":0,\"clk\":0,\"io\":0},\"palabra\":\"008048H\",\"cache\":{\"sesion\":2,\"eventos\":[\"CACHE L1I MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\"],\"l1i\":{\"nivel\":\"L1I\",\"hits\":30,\"misses\":7,\"accesos\":37,\"tasa\":81.1},\"l1d\":{\"nivel\":\"L1D\",\"hits\":0,\"misses\":0,\"accesos\":0,\"tasa\":0},\"l2\":{\"nivel\":\"L2\",\"hits\":4,\"misses\":3,\"accesos\":7,\"tasa\":57.1}},\"eventos\":[\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\"],\"paginas\":[{\"vpn\":0,\"p\":1,\"pfn\":0,\"dirty\":0,\"ref\":1},{\"vpn\":1,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":2,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":3,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":4,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":5,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":6,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":7,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":8,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":9,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":10,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":11,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":12,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":13,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":14,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":15,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0}],\"teclado\":[0,0,0,0,0,0,0,0],\"lcd\":[0,0,0,0,0,0,0,0],\"pausa\":false,\"runActivo\":false}}"
+    },
+    {
+      "name": "aritmética AX BX CX DX ZF",
+      "ok": true,
+      "detail": "{\"AX\":\"0CH\",\"BX\":\"04H\",\"CX\":\"00H\",\"DX\":\"04H\",\"ZF\":1}"
+    },
+    {
+      "name": "aritmética tuvo miss y luego hit",
+      "ok": true,
+      "detail": "{\"nivel\":\"L1I\",\"hits\":30,\"misses\":7,\"accesos\":37,\"tasa\":81.1}"
+    },
+    {
+      "name": "RESET conserva la RAM y pone AX en 00H",
+      "ok": true,
+      "detail": "ax=00H ram0=17"
+    },
+    {
+      "name": "CLEAR vacía presencia y conserva el primer byte del swap",
+      "ok": true,
+      "detail": "presentes=0 swap0=17 ram0=\"\""
+    },
+    {
+      "name": "LOAD eco",
+      "ok": true,
+      "detail": "{\"ok\":true,\"program\":\"Keyboard to LCD\",\"vpns\":[0]} "
+    },
+    {
+      "name": "memoria virtual activa junto con E/S",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "cola de 8 no usa la dirección F0H de los marcos",
+      "ok": true,
+      "detail": "F0="
+    },
+    {
+      "name": "eco llega a HALT",
+      "ok": true,
+      "detail": "{\"ok\":true,\"pausa\":false,\"continuar\":false,\"pasos\":11,\"estado\":\"HALT\",\"snapshot\":{\"estado\":\"HALT\",\"pc\":\"0EH\",\"ir\":\"HLT\",\"mar\":\"0DH\",\"mdr\":\"FF\",\"ax\":\"48H\",\"bx\":\"00H\",\"cx\":\"00H\",\"dx\":\"00H\",\"zf\":1,\"cf\":0,\"sf\":0,\"alu\":{\"op1\":\"01H\",\"op2\":1,\"sym\":\"'-\",\"res\":\"00H\"},\"buses\":{\"interno\":\"0EH\",\"conductorInterno\":\"ALU\",\"direccion\":\"0DH\",\"datos\":\"FFH\",\"conductorDatos\":\"RAM\",\"rd\":0,\"wr\":0,\"clk\":0,\"io\":0},\"palabra\":\"008048H\",\"cache\":{\"sesion\":4,\"eventos\":[\"CACHE L1I MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\"],\"l1i\":{\"nivel\":\"L1I\",\"hits\":68,\"misses\":16,\"accesos\":84,\"tasa\":81},\"l1d\":{\"nivel\":\"L1D\",\"hits\":0,\"misses\":0,\"accesos\":0,\"tasa\":0},\"l2\":{\"nivel\":\"L2\",\"hits\":14,\"misses\":2,\"accesos\":16,\"tasa\":87.5}},\"eventos\":[\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\"],\"paginas\":[{\"vpn\":0,\"p\":1,\"pfn\":0,\"dirty\":0,\"ref\":1},{\"vpn\":1,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":2,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":3,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":4,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":5,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":6,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":7,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":8,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":9,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":10,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":11,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":12,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":13,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":14,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":15,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0}],\"teclado\":[0,0,0,0,0,0,0,0],\"lcd\":[65,66,67,68,69,70,71,72],\"pausa\":false,\"runActivo\":false}}"
+    },
+    {
+      "name": "LCD muestra ABCDEFGH",
+      "ok": true,
+      "detail": "65,66,67,68,69,70,71,72"
+    },
+    {
+      "name": "ocho marcos siguen siendo el espacio paginable",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "LOAD disperso",
+      "ok": true,
+      "detail": "{\"ok\":true,\"program\":\"Scattered accesses\",\"vpns\":[0,2,3,5,7,9,11,14,15]} "
+    },
+    {
+      "name": "disperso llega a HALT",
+      "ok": true,
+      "detail": "{\"ok\":true,\"pausa\":false,\"continuar\":false,\"pasos\":11,\"estado\":\"HALT\",\"snapshot\":{\"estado\":\"HALT\",\"pc\":\"20H\",\"ir\":\"HLT\",\"mar\":\"1FH\",\"mdr\":\"FF\",\"ax\":\"03H\",\"bx\":\"02H\",\"cx\":\"03H\",\"dx\":\"04H\",\"zf\":0,\"cf\":0,\"sf\":0,\"alu\":{\"op1\":\"01H\",\"op2\":\"02H\",\"sym\":\"'+\",\"res\":\"03H\"},\"buses\":{\"interno\":\"20H\",\"conductorInterno\":\"ALU\",\"direccion\":\"1FH\",\"datos\":\"FFH\",\"conductorDatos\":\"RAM\",\"rd\":0,\"wr\":0,\"clk\":0,\"io\":0},\"palabra\":\"008048H\",\"cache\":{\"sesion\":6,\"eventos\":[\"CACHE L1I MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 MISS\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1I MISS\",\"CACHE L2 MISS\"],\"l1i\":{\"nivel\":\"L1I\",\"hits\":27,\"misses\":5,\"accesos\":32,\"tasa\":84.4},\"l1d\":{\"nivel\":\"L1D\",\"hits\":0,\"misses\":8,\"accesos\":8,\"tasa\":0},\"l2\":{\"nivel\":\"L2\",\"hits\":0,\"misses\":13,\"accesos\":13,\"tasa\":0}},\"eventos\":[\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1I MISS\",\"CACHE L2 MISS\"],\"paginas\":[{\"vpn\":0,\"p\":1,\"pfn\":1,\"dirty\":0,\"ref\":1},{\"vpn\":1,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":2,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":1},{\"vpn\":3,\"p\":1,\"pfn\":5,\"dirty\":0,\"ref\":1},{\"vpn\":4,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":5,\"p\":1,\"pfn\":2,\"dirty\":0,\"ref\":1},{\"vpn\":6,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":7,\"p\":1,\"pfn\":6,\"dirty\":1,\"ref\":1},{\"vpn\":8,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":9,\"p\":1,\"pfn\":3,\"dirty\":1,\"ref\":1},{\"vpn\":10,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":11,\"p\":1,\"pfn\":7,\"dirty\":0,\"ref\":1},{\"vpn\":12,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":13,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":0},{\"vpn\":14,\"p\":1,\"pfn\":4,\"dirty\":1,\"ref\":1},{\"vpn\":15,\"p\":1,\"pfn\":0,\"dirty\":1,\"ref\":1}],\"teclado\":[0,0,0,0,0,0,0,0],\"lcd\":[0,0,0,0,0,0,0,0],\"pausa\":false,\"runActivo\":false}}"
+    },
+    {
+      "name": "disperso registros",
+      "ok": true,
+      "detail": "{\"AX\":\"03H\",\"BX\":\"02H\",\"CX\":\"03H\",\"DX\":\"04H\"}"
+    },
+    {
+      "name": "nunca hay más de 8 páginas presentes",
+      "ok": true,
+      "detail": "presentes=8"
+    },
+    {
+      "name": "disperso acumula misses de datos",
+      "ok": true,
+      "detail": "{\"l1d\":{\"nivel\":\"L1D\",\"hits\":0,\"misses\":8,\"accesos\":8,\"tasa\":0},\"l2\":{\"nivel\":\"L2\",\"hits\":0,\"misses\":13,\"accesos\":13,\"tasa\":0}}"
+    },
+    {
+      "name": "el log registró page faults",
+      "ok": true,
+      "detail": "PAGE FAULT 000H vpn=0 pfn=0 libre reintento=lectura || PAGE FAULT 040H vpn=2 pfn=1 libre reintento=lectura || PAGE FAULT 0A0H vpn=5 pfn=2 libre reintento=lectura || PAGE FAULT 120H vpn=9 pfn=3 libre reintento=lectura"
+    },
+    {
+      "name": "alguna página residente queda dirty",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "un desalojo sucio hace write-back de 32 bytes",
+      "ok": true,
+      "detail": "PAGE FAULT 180H vpn=12 pfn=7 victima=11 reintento=lectura || write-back VPN 15 marco 0 32 bytes || PAGE FAULT 1A0H vpn=13 pfn=0 victima=15 reintento=lectura"
+    },
+    {
+      "name": "tras más fallos siguen 8 páginas presentes",
+      "ok": true,
+      "detail": "presentes=8"
+    },
+    {
+      "name": "traducir 0 cuando está presente",
+      "ok": true,
+      "detail": "{\"vpn\":0,\"offset\":0,\"pfn\":1,\"fisica\":32,\"presente\":true}"
+    },
+    {
+      "name": "dirección 512 rechazada",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "doble RUN rechazado",
+      "ok": true,
+      "detail": "Ya hay un RUN con token vigente. Espere el lote o pause."
+    },
+    {
+      "name": "PAUSE corta el lote sin micro-pasos",
+      "ok": true,
+      "detail": "{\"ok\":true,\"pausa\":true,\"continuar\":false,\"pasos\":0,\"snapshot\":{\"estado\":\"HALT\",\"pc\":\"20H\",\"ir\":\"HLT\",\"mar\":\"1A0H\",\"mdr\":\"00H\",\"ax\":\"03H\",\"bx\":\"02H\",\"cx\":\"03H\",\"dx\":\"04H\",\"zf\":0,\"cf\":0,\"sf\":0,\"alu\":{\"op1\":\"01H\",\"op2\":\"02H\",\"sym\":\"'+\",\"res\":\"03H\"},\"buses\":{\"interno\":\"ZZ\",\"conductorInterno\":\"—\",\"direccion\":\"1A0H\",\"datos\":\"00H\",\"conductorDatos\":\"RAM\",\"rd\":1,\"wr\":0,\"clk\":0,\"io\":0},\"palabra\":\"140010H\",\"cache\":{\"sesion\":6,\"eventos\":[\"CACHE L1I MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 MISS\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1I HIT\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1I MISS\",\"CACHE L2 MISS\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1D MISS\",\"CACHE L2 MISS\"],\"l1i\":{\"nivel\":\"L1I\",\"hits\":27,\"misses\":5,\"accesos\":32,\"tasa\":84.4},\"l1d\":{\"nivel\":\"L1D\",\"hits\":0,\"misses\":15,\"accesos\":15,\"tasa\":0},\"l2\":{\"nivel\":\"L2\",\"hits\":0,\"misses\":20,\"accesos\":20,\"tasa\":0}},\"eventos\":[\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1D MISS\",\"CACHE L2 MISS\",\"CACHE L1D MISS\",\"CACHE L2 MISS\"],\"paginas\":[{\"vpn\":0,\"p\":1,\"pfn\":1,\"dirty\":0,\"ref\":1},{\"vpn\":1,\"p\":1,\"pfn\":2,\"dirty\":0,\"ref\":1},{\"vpn\":2,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":1},{\"vpn\":3,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":1},{\"vpn\":4,\"p\":1,\"pfn\":3,\"dirty\":0,\"ref\":1},{\"vpn\":5,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":1},{\"vpn\":6,\"p\":1,\"pfn\":4,\"dirty\":0,\"ref\":1},{\"vpn\":7,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":1},{\"vpn\":8,\"p\":1,\"pfn\":5,\"dirty\":0,\"ref\":1},{\"vpn\":9,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":1},{\"vpn\":10,\"p\":1,\"pfn\":6,\"dirty\":0,\"ref\":1},{\"vpn\":11,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":1},{\"vpn\":12,\"p\":1,\"pfn\":7,\"dirty\":0,\"ref\":1},{\"vpn\":13,\"p\":1,\"pfn\":0,\"dirty\":0,\"ref\":1},{\"vpn\":14,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":1},{\"vpn\":15,\"p\":0,\"pfn\":\"—\",\"dirty\":0,\"ref\":1}],\"teclado\":[0,0,0,0,0,0,0,0],\"lcd\":[0,0,0,0,0,0,0,0],\"pausa\":true,\"runActivo\":false}}"
+    },
+    {
+      "name": "snapshot refleja AX y el estado",
+      "ok": true,
+      "detail": "{\"ax\":\"03H\",\"estado\":\"HALT\"}"
+    },
+    {
+      "name": "snapshot de buses no inventa un conductor si está en ZZ",
+      "ok": true,
+      "detail": "{\"interno\":\"ZZ\",\"conductorInterno\":\"—\",\"direccion\":\"1A0H\",\"datos\":\"00H\",\"conductorDatos\":\"RAM\",\"rd\":1,\"wr\":0,\"clk\":0,\"io\":0}"
+    },
+    {
+      "name": "HEX MOV reg",
+      "ok": true,
+      "detail": "004800H"
+    },
+    {
+      "name": "HEX IN",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "HEX OUT",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "la tabla tiene IN y OUT",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "alerts": []
+}
