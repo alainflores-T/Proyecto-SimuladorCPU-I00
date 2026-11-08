@@ -390,7 +390,23 @@ function simProbarTodo() {
     simAfirmar(fallos, pagina.indexOf("EN PC") >= 0 && pagina.indexOf("High-Z") >= 0 && pagina.indexOf("setInterval") < 0, "el laboratorio pinta el evento real y no anima un ciclo propio");
   });
 
-  if (total !== 18) fallos.push("se esperaban 18 casos y se ejecutaron " + total);
+  caso("19 transferencia y teclado real", function () {
+    var e = simEstadoInicial();
+    simMicroPaso(e);
+    simAfirmar(fallos, e.visSeq === 1 && e.recs.length === 1 && e.recs[0].bus === "dirInt" && e.recs[0].emisor === "PC", "F1 registra el bus interno y el emisor PC");
+    var copia = simEstadoInicial();
+    simImportar(copia, simExportar(e));
+    simAfirmar(fallos, copia.visSeq === 1 && copia.recs[0].fase === "F1", "la transferencia sobrevive al guardado");
+    var lcd = simEstadoInicial();
+    simCargarTexto(lcd, "MOV AX, 41H\nOUT [LCD], AX\nHLT\n", "lcdlab");
+    simTeclear(lcd, "H");
+    simAfirmar(fallos, lcd.ram[0xF0] === 0x48 && lcd.kbdCount === 1, "H entra en la cola real");
+    simBorrarTecla(lcd);
+    simAfirmar(fallos, lcd.kbdCount === 0 && lcd.ram[0xF0] === 0, "Borrar saca la última tecla");
+    simAfirmar(fallos, simEsTecla_("Espacio") && simEsTecla_("Borrar") && !simEsTecla_("HOLA"), "el teclado físico acepta una tecla, no un texto");
+  });
+
+  if (total !== 19) fallos.push("se esperaban 19 casos y se ejecutaron " + total);
   var lineas = simInformePruebas_(total, fallos);
   if (fallos.length) throw new Error(lineas.join("\n"));
   return { ok: true, total: total, fallos: fallos };

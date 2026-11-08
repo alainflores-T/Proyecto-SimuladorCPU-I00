@@ -43,6 +43,22 @@ function simTeclear(e, texto) {
   return { ok: true, byte: ultimo, n: raw.length };
 }
 
+function simBorrarTecla(e) {
+  if (!e.kbdCount) return { ok: false, error: "Cola vacía" };
+  e.kbdTail = (e.kbdTail + 7) & 7;
+  e.kbdCount--;
+  e.ram[0xF0 + (e.kbdTail & 7)] = 0;
+  return { ok: true, byte: 0 };
+}
+
+function simEsTecla_(texto) {
+  var t = String(texto || "");
+  if (t.length === 1 && t >= "A" && t <= "Z") return true;
+  if (t.length === 1 && t >= "0" && t <= "9") return true;
+  if (t === "Espacio" || t === "Borrar") return true;
+  return false;
+}
+
 function simLimpiarCola(e) {
   var i;
   for (i = 0; i < 8; i++) e.ram[0xF0 + i] = 0;

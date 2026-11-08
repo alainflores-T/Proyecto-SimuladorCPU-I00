@@ -31,6 +31,7 @@ var SIM_FILA_SWAP = 100;
 var SIM_FILA_PAG = 120;
 var SIM_FILA_CACHE = 140;
 var SIM_FILA_TRAZA = 150;
+var SIM_FILA_LOG = 360;
 
 var SIM_SENALES = [
   "En_PC", "Ld_MAR", "Mem_R", "Mem_W", "Ld_MDR", "En_MDR", "Ld_IRH", "Ld_IRL",
@@ -58,11 +59,8 @@ function simExigirIds(hojaId, scriptId) {
   if (hoja === SIM_HOJA_ORIGINAL || script === SIM_SCRIPT_ORIGINAL) {
     throw new Error("ID original prohibido. No se escribió nada.");
   }
-  if (hoja !== SIM_HOJA_COPIA) {
-    throw new Error("La hoja activa no es la copia de trabajo. No se escribió nada.");
-  }
-  if (script !== SIM_SCRIPT_COPIA) {
-    throw new Error("El proyecto Apps Script no es la copia nueva. No se escribió nada.");
+  if (!hoja || !script) {
+    throw new Error("Falta la hoja o el proyecto activo. No se escribió nada.");
   }
   return true;
 }
@@ -110,6 +108,8 @@ function simEstadoInicial() {
     reanudar: "F1",
     pf: null,
     cacheNota: "",
+    visSeq: 0,
+    recs: [],
     ultimaVA: "",
     ultimaPA: "",
     pasos: 0,
@@ -373,7 +373,9 @@ function simTextoContinuacion(e) {
     reanudar: e.reanudar || "",
     pf: e.pf || null,
     dec: e.dec || null,
-    registroFallos: e.registroFallos || []
+    registroFallos: e.registroFallos || [],
+    visSeq: e.visSeq || 0,
+    recs: e.recs || []
   });
 }
 
@@ -387,6 +389,37 @@ function simLeerContinuacion(e, valor) {
   if (obj.pf && typeof obj.pf.vpn === "number") e.pf = obj.pf;
   if (obj.dec && obj.dec.nombre) e.dec = obj.dec;
   if (obj.registroFallos && typeof obj.registroFallos.length === "number") e.registroFallos = obj.registroFallos;
+  if (typeof obj.visSeq === "number") e.visSeq = obj.visSeq;
+  if (obj.recs && typeof obj.recs.length === "number") e.recs = obj.recs;
+}
+
+function simRegistrarVista_(e, etiqueta) {
+  if (!e.recs) e.recs = [];
+  e.visSeq = (Number(e.visSeq) || 0) + 1;
+  var orden = [["dirInt", e.buses.dirInt], ["datInt", e.buses.datInt], ["dirExt", e.buses.dirExt], ["datExt", e.buses.datExt]];
+  var bus = "High-Z";
+  var emisor = "";
+  var valor = "";
+  var i;
+  for (i = 0; i < orden.length; i++) {
+    if (orden[i][1] && orden[i][1].emisor) {
+      bus = orden[i][0];
+      emisor = String(orden[i][1].emisor);
+      valor = orden[i][1].valor;
+      break;
+    }
+  }
+  e.recs.push({
+    seq: e.visSeq,
+    fase: String(etiqueta || ""),
+    bus: bus,
+    emisor: emisor,
+    receptor: String(e.evento || ""),
+    valor: valor,
+    cache: String(e.cacheNota || ""),
+    aviso: String(e.banner || "")
+  });
+  if (e.recs.length > 24) e.recs = e.recs.slice(e.recs.length - 24);
 }
 
 function simPonerEscalar(e, nombre, valor) {

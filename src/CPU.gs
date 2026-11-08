@@ -567,6 +567,7 @@ function simMicroPaso(e) {
     e.fase = "ERROR";
     simPulso(e);
     simAnotar(e, etiqueta);
+    simRegistrarVista_(e, etiqueta);
     return e;
   }
   var siguiente = fn(e);
@@ -575,10 +576,12 @@ function simMicroPaso(e) {
     if (!e.evento) e.evento = e.error;
     simPulso(e);
     simAnotar(e, e.reclasificar || etiqueta);
+    simRegistrarVista_(e, e.reclasificar || etiqueta);
     return e;
   }
   simPulso(e);
   simAnotar(e, e.reclasificar || etiqueta);
+  simRegistrarVista_(e, e.reclasificar || etiqueta);
   e.fase = siguiente;
   e.pasos++;
   return e;
