@@ -9,6 +9,7 @@ function simCrearLibroPrueba(opciones) {
     var valores = {};
     var merges = [];
     var formatos = [];
+    var numeros = {};
     var validaciones = {};
     var protecciones = [];
     var checks = {};
@@ -37,6 +38,7 @@ function simCrearLibroPrueba(opciones) {
       setRowHeight: function (fila, alto) { hoja.alturas[fila] = alto; },
       casillas: checks,
       validaciones: validaciones,
+      numeros: numeros,
       setConditionalFormatRules: function (lista) { formatos = lista || []; },
       getConditionalFormatRules: function () { return formatos.slice(); },
       getProtections: function () { return protecciones.slice(); },
@@ -108,7 +110,11 @@ function simCrearLibroPrueba(opciones) {
                     throw new Error("No se puede escribir sobre celdas combinadas.");
                   }
                 }
-                valores[clave(fr, fc)] = datos[r][c];
+                var valor = datos[r][c];
+                if (typeof valor === "string" && /^[0-9]{1,2} [0-9]{1,2}$/.test(valor) && numeros[clave(fr, fc)] !== "@") {
+                  valor = new Date(Date.UTC(2026, 7, 14));
+                }
+                valores[clave(fr, fc)] = valor;
               }
             }
           },
@@ -117,7 +123,14 @@ function simCrearLibroPrueba(opciones) {
           setFontWeight: function () { return rango; },
           setFontSize: function () { return rango; },
           setHorizontalAlignment: function () { return rango; },
-          setNumberFormat: function () { return rango; },
+          setNumberFormat: function (fmt) {
+            var r;
+            var c;
+            for (r = 0; r < nf; r++) {
+              for (c = 0; c < nc; c++) numeros[clave(fila + r, col + c)] = fmt;
+            }
+            return rango;
+          },
           setWrap: function () {
             var r;
             var c;
@@ -357,6 +370,21 @@ function simProbarSetupHoja() {
   try { libro.insertSheet("programas"); }
   catch (err3) { choque = true; }
   afirmar(choque, "insertar programas en otro caso choca con PROGRAMAS");
+
+  var imagen = simEnsamblar("MOV CX, 08H\n");
+  afirmar(imagen.ok && imagen.imagen[0] === 0x14 && imagen.imagen[1] === 0x08, "MOV CX, 08H se ensambla a 14 08");
+  var editor = [];
+  var n;
+  for (n = 0; n < 40; n++) editor.push(["", n === 0 ? "MOV CX, 08H" : "", ""]);
+  var programas = libro.getSheetByName("PROGRAMAS");
+  var pcAntes = libro.getSheetByName("_ESTADO").getRange(simFilaEscalar("pc"), 2).getValue();
+  programas.getRange(5, 2, 40, 3).setValues(editor);
+  var aviso = simEnsamblarHoja();
+  var g5 = programas.getRange(5, 7).getValue();
+  afirmar(String(aviso).indexOf("correcto") >= 0, "ensamblar MOV CX, 08H es correcto");
+  afirmar(g5 === "14 08", "PROGRAMAS!G5 conserva el texto 14 08, vino " + g5);
+  afirmar(programas.numeros["5,7"] === "@", "G5 queda en formato texto");
+  afirmar(libro.getSheetByName("_ESTADO").getRange(simFilaEscalar("pc"), 2).getValue() === pcAntes, "el listado no cambia el PC");
 
   return { ok: fallos.length === 0, total: 1, fallos: fallos };
 }

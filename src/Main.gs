@@ -781,7 +781,10 @@ function simVolcarListado_(ss, resultado) {
     var bytes = lista[i].bytes.map(function (b) { return simHex(b, 2); }).join(" ");
     filas.push([simHex(lista[i].va, 3) + "H", bytes, lista[i].texto]);
   }
-  if (filas.length) simPegar_(hoja, 5, 6, filas);
+  if (filas.length) {
+    hoja.getRange(5, 6, filas.length, 3).setNumberFormat("@");
+    simPegar_(hoja, 5, 6, filas);
+  }
   var errs = resultado.errores || [];
   if (errs.length) {
     var col = [];
