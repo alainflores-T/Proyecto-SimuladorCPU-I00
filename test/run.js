@@ -28,8 +28,12 @@ for (i = 0; i < archivos.length; i++) {
 
 var manifiesto = JSON.parse(fs.readFileSync(path.join(raiz, "appsscript.json"), "utf8"));
 var ambitos = manifiesto.oauthScopes || [];
-if (ambitos.length !== 1 || ambitos[0] !== "https://www.googleapis.com/auth/spreadsheets.currentonly") {
-  console.error("El manifiesto no queda en el ámbito mínimo de la hoja actual.");
+var esperados = [
+  "https://www.googleapis.com/auth/spreadsheets.currentonly",
+  "https://www.googleapis.com/auth/script.container.ui"
+];
+if (ambitos.length !== esperados.length || esperados.some(function (s) { return ambitos.indexOf(s) < 0; })) {
+  console.error("El manifiesto no queda en la hoja actual y el diálogo del contenedor.");
   process.exit(1);
 }
 if (manifiesto.webapp || manifiesto.urlFetchWhitelist || manifiesto.executionApi) {
