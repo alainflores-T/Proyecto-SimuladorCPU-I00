@@ -1,4 +1,4 @@
-// CPU.gs — un micro-paso por llamada. ISA de 2 bytes.
+// CPU.gs — un micro-paso por llamada. ISA de 2 bytes..
 // Buses: dirección interna 9 b, datos internos 8 b,
 // dirección externa física 8 b, datos externos 8 b,
 // control Read, Write, Clock, IO.
