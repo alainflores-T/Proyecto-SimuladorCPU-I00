@@ -113,8 +113,9 @@ function simCrearLibroPrueba(opciones) {
                   }
                 }
                 var valor = datos[r][c];
-                if (typeof valor === "string" && /^[0-9]{1,2} [0-9]{1,2}$/.test(valor) && numeros[clave(fr, fc)] !== "@") {
-                  valor = new Date(Date.UTC(2026, 7, 14));
+                if (typeof valor === "string" && numeros[clave(fr, fc)] !== "@") {
+                  if (/^[0-9]{1,2} [0-9]{1,2}$/.test(valor)) valor = new Date(Date.UTC(2026, 7, 14));
+                  else if (/^[0-9][Ee][0-9]+$/.test(valor)) valor = Number(valor);
                 }
                 valores[clave(fr, fc)] = valor;
               }
@@ -337,6 +338,9 @@ function simProbarSetupHoja() {
   afirmar(mapa.falloCol < mapa.ramEncabezadoCol && mapa.falloFila >= mapa.aluFila && mapa.falloFila < mapa.aluFila + 6, "las banderas no flotan fuera de la ALU");
   afirmar(String(panel.getRange(mapa.vmDatosFila, mapa.ramCol).getValue()) === "=_ESTADO!A" + SIM_FILA_SWAP, "la mitad +00 de la VM lee el swap");
   afirmar(String(panel.getRange(mapa.vmAltaFila, mapa.ramCol).getValue()) === "=_ESTADO!Q" + SIM_FILA_SWAP, "la mitad +10 de la VM lee la otra mitad");
+  afirmar(panel.getRange(mapa.vmDatosFila + 15, mapa.vmNotaCol).getValue() === "1E0", "la etiqueta 1E0 sigue en texto");
+  afirmar(panel.numeros[(mapa.vmDatosFila + 15) + "," + mapa.vmNotaCol] === "@", "la etiqueta de la VM se fijó como texto");
+  afirmar(panel.numeros[mapa.ramFila + "," + mapa.ramEncabezadoCol] === "@", "las direcciones de la RAM se fijaron como texto");
   afirmar(String(panel.getRange(mapa.pagFila, mapa.vmNotaCol).getValue()) === "VPN", "la tabla de páginas está bajo la VM");
   afirmar(String(panel.getRange(mapa.pcFila, mapa.pcCol).getValue()).indexOf("=") === 0, "el PC es una fórmula al estado");
   afirmar(String(panel.getRange(mapa.busValorFila, mapa.busValorCol).getValue()).indexOf("=") === 0, "el valor del bus es una fórmula");
@@ -383,7 +387,14 @@ function simProbarSetupHoja() {
   panel.getRange(mapa.prog[0], mapa.prog[1]).setValue("P2");
   var carga = simCargarDesdePanel();
   afirmar(String(carga).indexOf("P2") >= 0, "el selector carga el catálogo P2");
-  afirmar(libro.getSheetByName("PROGRAMAS").getRange(5, 2).getValue() === "MOV AX, 01H", "cargar el selector no pisa el editor");
+  var vioP2 = false;
+  var filaEd;
+  for (filaEd = 5; filaEd < 20; filaEd++) {
+    if (String(libro.getSheetByName("PROGRAMAS").getRange(filaEd, 3).getValue()).indexOf("MOV CX, 08H") >= 0) vioP2 = true;
+  }
+  afirmar(vioP2, "LOAD copia el fuente P2 al editor");
+  afirmar(libro.getSheetByName("PROGRAMAS").getRange(1, 2).getValue() === "P2", "LOAD marca P2 en el editor");
+  afirmar(libro.getSheetByName("PROGRAMAS").getRange(5, 7).getValue() === "14 08", "LOAD reescribe 14 08 como texto");
   afirmar(String(libro.getSheetByName("_ESTADO").getRange(simFilaEscalar("programa"), 2).getValue()) === "P2", "el estado queda con P2");
   libro.getSheetByName("_ESTADO").getRange(filaAx, 2).setValue(7);
   panel.getRange(mapa.prog[0], mapa.prog[1]).setValue("P3");
@@ -410,6 +421,32 @@ function simProbarSetupHoja() {
   afirmar(g5 === "14 08", "PROGRAMAS!G5 conserva el texto 14 08, vino " + g5);
   afirmar(programas.numeros["5,7"] === "@", "G5 queda en formato texto");
   afirmar(libro.getSheetByName("_ESTADO").getRange(simFilaEscalar("pc"), 2).getValue() === pcAntes, "el listado no cambia el PC");
+
+  var hojaEstado = libro.getSheetByName("_ESTADO");
+  var pcFijo = hojaEstado.getRange(simFilaEscalar("pc"), 2).getValue();
+  hojaEstado.getRange(filaAx, 2).setValue(77);
+  hojaEstado.getRange(simFilaEscalar("programa"), 2).setValue("P3");
+  programas.getRange(5, 7).setValue(new Date(Date.UTC(2026, 7, 14)));
+  programas.getRange(6, 3).setValue("FUENTE VIEJA");
+  var avisoAlinear = simAlinearEditorAlEstado();
+  var p3asm = simEnsamblar(simBuscarPrograma("P3").lineas.join("\n"));
+  var bytesP3 = p3asm.listado[0].bytes.map(function (b) { return simHex(b, 2); }).join(" ");
+  var vioP3 = false;
+  for (n = 5; n < 30; n++) {
+    if (String(programas.getRange(n, 3).getValue()).indexOf("LD AX") >= 0) vioP3 = true;
+  }
+  afirmar(String(avisoAlinear).indexOf("P3") >= 0 && String(avisoAlinear).indexOf("no se modificó") >= 0, "alinear avisa que la CPU sigue igual");
+  afirmar(vioP3, "el editor queda con el fuente P3");
+  afirmar(programas.getRange(1, 2).getValue() === "P3", "el editor queda marcado como P3");
+  afirmar(programas.getRange(5, 7).getValue() === bytesP3, "G5 sale del listado P3 y no de la fecha, vino " + programas.getRange(5, 7).getValue());
+  afirmar(!(programas.getRange(5, 7).getValue() instanceof Date), "G5 no queda como fecha");
+  afirmar(hojaEstado.getRange(filaAx, 2).getValue() === 77, "alinear no toca AX");
+  afirmar(hojaEstado.getRange(simFilaEscalar("pc"), 2).getValue() === pcFijo, "alinear no toca el PC");
+  programas.getRange(6, 3).setValue("NO TOCAR");
+  hojaEstado.getRange(simFilaEscalar("programa"), 2).setValue("");
+  var avisoVacio = simAlinearEditorAlEstado();
+  afirmar(programas.getRange(6, 3).getValue() === "NO TOCAR", "sin demo P1 P2 o P3 el editor no se pisa");
+  afirmar(String(avisoVacio).indexOf("no se tocó") >= 0, "alinear avisa que no tocó el editor");
 
   return { ok: fallos.length === 0, total: 1, fallos: fallos };
 }

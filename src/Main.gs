@@ -550,6 +550,8 @@ function simPintarPanel_(ss) {
   var f;
   var c;
   for (h = 0; h < 16; h++) ramHead.push(h.toString(16).toUpperCase());
+  hoja.getRange(mapa.ramEncabezadoFila, mapa.ramEncabezadoCol, 1, 17).setNumberFormat("@");
+  hoja.getRange(mapa.ramFila, mapa.ramEncabezadoCol, 16, 1).setNumberFormat("@");
   simPegar_(hoja, mapa.ramEncabezadoFila, mapa.ramEncabezadoCol, [ramHead]);
   var ram = [];
   for (f = 0; f < 16; f++) {
@@ -615,6 +617,8 @@ function simPintarPanel_(ss) {
     var cab = [titulo];
     var n;
     for (n = 0; n < 16; n++) cab.push((desplazamiento + n).toString(16).toUpperCase());
+    hoja.getRange(fila, mapa.vmNotaCol, 1, 17).setNumberFormat("@");
+    hoja.getRange(fila + 1, mapa.vmNotaCol, 16, 1).setNumberFormat("@");
     simPegar_(hoja, fila, mapa.vmNotaCol, [cab]);
     var cuerpo = [];
     var r;
@@ -925,6 +929,7 @@ function simPintarEs_(ss) {
 
 function simPintarProgramas_(ss) {
   var hoja = simHoja_(ss, "PROGRAMAS");
+  hoja.getRange(2, 1).setValue("Fuente editable. El listado es su ensamblado. La CPU viva está en PANEL, celda En CPU.");
   if (String(hoja.getRange(4, 1).getValue()) === "Línea") {
     simBotonesPrograma_(hoja);
     return hoja;
@@ -932,7 +937,7 @@ function simPintarProgramas_(ss) {
   simDescombinar_(hoja);
   simPegar_(hoja, 1, 1, [
     ["Programa", "P1"],
-    ["Editor auxiliar. Cargar también está en PANEL. No se borra el texto ya escrito.", ""]
+    ["Fuente editable. El listado es su ensamblado. La CPU viva está en PANEL, celda En CPU.", ""]
   ]);
   var regla = SpreadsheetApp.newDataValidation().requireValueInList(["P1", "P2", "P3"], true).setAllowInvalid(false).build();
   hoja.getRange(1, 2).setDataValidation(regla);
@@ -1006,9 +1011,39 @@ function simEditorTexto_(ss) {
   return lineas.join("\n");
 }
 
+function simFilasDePrograma_(prog) {
+  var filas = [];
+  var i;
+  for (i = 0; i < 40; i++) {
+    if (i < prog.lineas.length) {
+      var p = simParseLinea(prog.lineas[i]);
+      var com = "";
+      var semi = prog.lineas[i].indexOf(";");
+      if (semi >= 0) com = prog.lineas[i].slice(semi + 1).trim();
+      filas.push([p.etiqueta, p.mnemonico ? (p.mnemonico + (p.resto ? " " + p.resto : "")) : "", com]);
+    } else filas.push(["", "", ""]);
+  }
+  return filas;
+}
+
+function simEscribirDemoEnEditor_(ss, id) {
+  var prog = simBuscarPrograma(id);
+  if (!prog) throw new Error("Elija P1, P2 o P3.");
+  var hoja = simHoja_(ss, "PROGRAMAS");
+  hoja.getRange(1, 2).setNumberFormat("@");
+  hoja.getRange(1, 2).setValue(prog.id);
+  var destino = hoja.getRange(5, 2, 40, 3);
+  destino.clearContent();
+  destino.setNumberFormat("@");
+  simPegar_(hoja, 5, 2, simFilasDePrograma_(prog));
+  simVolcarListado_(ss, simEnsamblar(prog.lineas.join("\n")));
+}
+
 function simVolcarListado_(ss, resultado) {
   var hoja = ss.getSheetByName("PROGRAMAS");
-  hoja.getRange(5, 6, 40, 3).clearContent();
+  var listado = hoja.getRange(5, 6, 40, 3);
+  listado.clearContent();
+  listado.setNumberFormat("@");
   hoja.getRange(5, 10, 40, 1).clearContent();
   var filas = [];
   var i;
@@ -1017,10 +1052,7 @@ function simVolcarListado_(ss, resultado) {
     var bytes = lista[i].bytes.map(function (b) { return simHex(b, 2); }).join(" ");
     filas.push([simHex(lista[i].va, 3) + "H", bytes, lista[i].texto]);
   }
-  if (filas.length) {
-    hoja.getRange(5, 6, filas.length, 3).setNumberFormat("@");
-    simPegar_(hoja, 5, 6, filas);
-  }
+  if (filas.length) simPegar_(hoja, 5, 6, filas);
   var errs = resultado.errores || [];
   if (errs.length) {
     var col = [];
@@ -1031,22 +1063,22 @@ function simVolcarListado_(ss, resultado) {
 
 function simTraerPrograma() {
   var ss = simLibro_();
-  var id = String(ss.getSheetByName("PROGRAMAS").getRange(1, 2).getValue() || "P1");
-  var prog = simBuscarPrograma(id);
-  if (!prog) throw new Error("Elija P1, P2 o P3.");
-  var filas = [];
-  var i;
-  for (i = 0; i < 40; i++) {
-    if (i < prog.lineas.length) {
-      var p = simParseLinea(prog.lineas[i]);
-      var com = "";
-      var crudo = prog.lineas[i];
-      var semi = crudo.indexOf(";");
-      if (semi >= 0) com = crudo.slice(semi + 1).trim();
-      filas.push([p.etiqueta, p.mnemonico ? (p.mnemonico + (p.resto ? " " + p.resto : "")) : "", com]);
-    } else filas.push(["", "", ""]);
+  var id = simIdPrograma_(ss.getSheetByName("PROGRAMAS").getRange(1, 2).getValue());
+  if (!id) throw new Error("Elija P1, P2 o P3.");
+  simEscribirDemoEnEditor_(ss, id);
+  return "Editor y listado en " + id + ". La CPU no se modificó.";
+}
+
+function simAlinearEditorAlEstado() {
+  var ss = simLibro_();
+  var estado = ss.getSheetByName("_ESTADO");
+  if (!estado || String(estado.getRange(1, 1).getValue()) !== SIM_MAGIA) {
+    return "No hay estado. El editor no se tocó.";
   }
-  simPegar_(ss.getSheetByName("PROGRAMAS"), 5, 2, filas);
+  var id = simIdPrograma_(estado.getRange(simFilaEscalar("programa"), 2).getValue());
+  if (!id) return "La CPU no tiene un demo P1, P2 o P3. El editor no se tocó.";
+  simEscribirDemoEnEditor_(ss, id);
+  return "Editor y listado quedaron en " + id + ". La CPU no se modificó.";
 }
 
 function simEnsamblarHoja() {
@@ -1145,7 +1177,8 @@ function simCargarDesdePanel() {
     var r = simCargarCatalogo(e, id);
     if (!r.ok) return r.errores.join("\n");
     simEscribirEstado_(ss, e);
-    return "Cargado " + id + " desde el catálogo. El editor no se modificó.";
+    simEscribirDemoEnEditor_(ss, id);
+    return "Cargado " + id + ". Editor y listado quedaron con ese demo.";
   });
 }
 
@@ -1208,6 +1241,7 @@ function onOpen() {
     .addItem("Traer programa al editor", "simTraerPrograma")
     .addItem("Ensamblar", "simEnsamblarHoja")
     .addItem("Cargar selector (P1-P3)", "simCargarDesdePanel")
+    .addItem("Alinear editor al programa en CPU", "simAlinearEditorAlEstado")
     .addItem("Cargar editor", "simCargarHoja")
     .addSeparator()
     .addItem("Step", "simStep")
@@ -1323,25 +1357,12 @@ function simCargarFuente(id) {
   var ss = simLibro_();
   var prog = simBuscarPrograma(id);
   if (!prog) throw new Error("Elija P1, P2 o P3.");
-  var hoja = simHoja_(ss, "PROGRAMAS");
-  hoja.getRange(1, 2).setValue(prog.id);
-  var filas = [];
-  var i;
-  for (i = 0; i < 40; i++) {
-    if (i < prog.lineas.length) {
-      var p = simParseLinea(prog.lineas[i]);
-      var com = "";
-      var semi = prog.lineas[i].indexOf(";");
-      if (semi >= 0) com = prog.lineas[i].slice(semi + 1).trim();
-      filas.push([p.etiqueta, p.mnemonico ? (p.mnemonico + (p.resto ? " " + p.resto : "")) : "", com]);
-    } else filas.push(["", "", ""]);
-  }
-  simPegar_(hoja, 5, 2, filas);
   return simConCandado_(function () {
     var e = simLeerEstado_(ss);
     var r = simCargarCatalogo(e, prog.id);
     if (!r.ok) return r.errores.join("\n");
     simEscribirEstado_(ss, e);
+    simEscribirDemoEnEditor_(ss, prog.id);
     return prog.id;
   });
 }
