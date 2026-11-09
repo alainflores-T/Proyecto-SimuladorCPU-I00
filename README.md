@@ -1,4 +1,5 @@
 # Simulador avanzado de arquitectura de computadoras
+<img width="367" height="345" alt="image" src="https://github.com/user-attachments/assets/a7d98a88-5b46-4d82-9f6d-37eb6669433a" />
 
 [Español](README.md) | [English](README_EN.md)
 
