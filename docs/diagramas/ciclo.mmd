@@ -1,0 +1,20 @@
+flowchart TD
+  F1["F1: PC a MAR"] --> F2["F2: lee el byte alto y PC mas 1"]
+  F2 -->|pagina presente| F3["F3: MDR a IR alto"]
+  F3 --> F4["F4: PC a MAR"]
+  F4 --> F5["F5: lee el byte bajo y PC mas 1"]
+  F5 -->|pagina presente| F6["F6: MDR a IR bajo"]
+  F6 --> DEC["DECODE"]
+  DEC --> EX["EX"]
+  EX -->|instruccion comun| F1
+  EX -->|HLT| HALT["HALT fin normal"]
+  F2 -->|ausente| PF1["PF1: elige marco"]
+  F5 -->|ausente| PF1
+  EX -->|LD o ST ausente| PF1
+  PF1 -->|victima sucia| PF2["PF2: 32 B de RAM a swap"]
+  PF1 -->|marco libre o victima limpia| PF3["PF3: 32 B de swap a RAM"]
+  PF2 --> PF3
+  PF3 --> PF4["PF4: tabla, invalida cache y reanuda"]
+  PF4 -->|reanuda fetch| F2
+  PF4 -->|reanuda fetch| F5
+  PF4 -->|reanuda dato| EX

@@ -1,0 +1,15 @@
+flowchart TD
+  TECLA["Tecla QWERTY Espacio o Borrar"] --> LLENA{"Cuenta menor que 8"}
+  LLENA -->|no| RECHAZO["La novena no entra"]
+  LLENA -->|si| COLA["RAM F0-F7 en la cola circular"]
+  BORRAR["Borrar"] --> COLA
+  COLA --> IN["IN AX KBD"]
+  IN --> VACIA{"Cuenta es 0"}
+  VACIA -->|si| CERO["Devuelve 00H y no mueve la cabeza"]
+  VACIA -->|no| BYTE["Entrega el byte y avanza la cabeza"]
+  BYTE --> AX[AX]
+  CERO --> AX
+  AX --> OUT["OUT LCD AX"]
+  OUT --> HUECO{"Cursor menor que 8"}
+  HUECO -->|si| LCD["RAM F8-FF y cursor mas 1"]
+  HUECO -->|no| LLENALCD["LCD llena: no escribe"]

@@ -1,0 +1,16 @@
+flowchart TD
+  VA["VA de 9 bits"] --> CORTE["VPN VA 8 a 5 y offset VA 4 a 0"]
+  CORTE --> PRESENTE{"Bit P de la VPN"}
+  PRESENTE -->|si| PA["PA = PFN por 32 mas offset"]
+  PRESENTE -->|no y VPN distinta de 15| LIBRE{"Hay marco 0 a 6 libre"}
+  PRESENTE -->|VPN 15| FIJA["Marco 7 siempre presente"]
+  LIBRE -->|si| CARGA["PF3 carga la pagina"]
+  LIBRE -->|no| FIFO["Victima FIFO: menor orden"]
+  FIFO --> SUCIO{"Dirty"}
+  SUCIO -->|si| WB["PF2 escribe 32 B en el swap"]
+  SUCIO -->|no| CARGA
+  WB --> CARGA
+  CARGA --> TABLA["PF4 instala PFN y limpia la victima"]
+  TABLA --> INV["Invalida lineas de cache de ese marco"]
+  INV --> PA
+  FIJA --> MMIO["F0-F7 teclado y F8-FF LCD sin cache"]
