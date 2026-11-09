@@ -1,1 +1,46 @@
-# Instruction Set Architecture (ISA)8-bit CPU with 4 general-purpose registers (AX, BX, CX, DX) and flags ZF, CF, SF.| Mnemonic | Format | Opcode | Bytes | Flags | Micro-operations ||---|---|---|---|---|---|| NOP | NOP | 00 | 1 | - | - || MOV | MOV reg, reg / MOV reg, imm | 01 / 11 | 3 | ZF, SF | reg <- src || ADD | ADD reg, reg / imm | 02 / 12 | 3 | ZF, CF, SF | reg <- reg + src || SUB | SUB reg, reg / imm | 03 / 13 | 3 | ZF, CF (borrow), SF | reg <- reg - src || INC | INC reg | 04 | 2 | ZF, CF, SF | reg <- reg + 1 || DEC | DEC reg | 05 | 2 | ZF, CF, SF | reg <- reg - 1 || CMP | CMP reg, reg / imm | 06 / 16 | 3 | ZF, CF, SF | reg - src (result discarded) || LD | LD reg, [addr] | 07 | 3-4 | - | MAR <- addr; MDR <- M[MAR]; reg <- MDR || ST | ST [addr], reg / imm | 08 / 18 | 3-4 | - | MAR <- addr; MDR <- src; M[MAR] <- MDR || JMP | JMP addr | 09 | 2-3 | - | PC <- addr || JZ | JZ addr | 0A | 2-3 | - | if ZF=1: PC <- addr || JNZ | JNZ addr | 0B | 2-3 | - | if ZF=0: PC <- addr || JC | JC addr | 0C | 2-3 | - | if CF=1: PC <- addr || JS | JS addr | 0D | 2-3 | - | if SF=1: PC <- addr || AND | AND reg, reg / imm | 0E / 1E | 3 | ZF, SF | reg <- reg AND src || OR | OR reg, reg / imm | 0F / 1F | 3 | ZF, SF | reg <- reg OR src || IN | IN reg, [KBD] | 20 | 3 | - | reg <- keyboard queue || OUT | OUT [LCD], reg | 21 | 3 | - | LCD <- reg || HLT | HLT | FF | 1 | - | stop |**Encoding:** opcode + operands. +10H on the opcode when the source is an immediate value.**Registers:** AX=00, BX=01, CX=02, DX=03. **Ports:** KBD=00, LCD=01.**Addresses:** 9-bit virtual addresses 000H-1FFH (512 B); addresses above FFH take 2 bytes.
+# ISA
+
+Volver a [arquitectura.md](arquitectura.md).
+
+Todas las instrucciones ocupan 2 bytes. El fetch siempre lee los dos.
+
+Byte 0: opcode de 5 bits en las posiciones 7 a 3, registro destino en los bits 2 y 1, y el bit 8 de la dirección en el bit 0.
+
+Byte 1: inmediato, parte baja de la dirección, o registro fuente en los dos bits bajos.
+
+`b0 = (opcode << 3) | (registro << 1) | A8`. Registros: AX 0, BX 1, CX 2, DX 3.
+
+| Mnemónico | Opcode | Forma | Banderas |
+| --- | --- | --- | --- |
+| NOP | 0 | `NOP` | no |
+| HLT | 1 | `HLT` | no |
+| MOV inmediato | 2 | `MOV reg, imm` | no |
+| MOV registro | 3 | `MOV reg, reg` | no |
+| LD | 4 | `LD reg, [dir]` | no |
+| ST | 5 | `ST [dir], reg` | no |
+| ADD inmediato | 6 | `ADD reg, imm` | ZF, CF, SF |
+| ADD registro | 7 | `ADD reg, reg` | ZF, CF, SF |
+| SUB inmediato | 8 | `SUB reg, imm` | ZF, CF, SF |
+| SUB registro | 9 | `SUB reg, reg` | ZF, CF, SF |
+| AND inmediato | 10 | `AND reg, imm` | ZF, SF. CF no cambia |
+| AND registro | 11 | `AND reg, reg` | ZF, SF. CF no cambia |
+| OR inmediato | 12 | `OR reg, imm` | ZF, SF. CF no cambia |
+| OR registro | 13 | `OR reg, reg` | ZF, SF. CF no cambia |
+| CMP inmediato | 14 | `CMP reg, imm` | ZF, CF, SF. No escribe el registro |
+| CMP registro | 15 | `CMP reg, reg` | ZF, CF, SF. No escribe el registro |
+| INC | 16 | `INC reg` | ZF, CF, SF |
+| DEC | 17 | `DEC reg` | ZF, CF, SF |
+| JMP | 18 | `JMP dir` | no |
+| JZ | 19 | `JZ dir` | no |
+| JNZ | 20 | `JNZ dir` | no |
+| JC | 21 | `JC dir` | no |
+| IN | 22 | `IN reg, [KBD]` | no |
+| OUT | 23 | `OUT [LCD], reg` | no |
+
+No hay `JS`. CF de una resta es 1 si el resultado es negativo antes de quedarse en 8 bits. SF es el bit 7 del resultado. ZF es el resultado en cero. MOV no toca las banderas.
+
+`LD`, `ST`, los saltos y `DB` rechazan la ventana `1E0`–`1FF`. Esa ventana es la E/S de la VPN 15. Para el teclado y el LCD se usan `IN` y `OUT`.
+
+Ejemplo medido en el listado de P3: `LD AX, [40H]` queda `20 40`. Opcode 4, registro 0 y dirección `040` dan el byte alto `20` y el bajo `40`. `HLT` queda `08 00`, que es el IR `0800` al final de P3.
+
+Un borrador anterior de este archivo describía opcodes de un byte, instrucciones de hasta 4 bytes y la bandera JS. Eso no es este motor.

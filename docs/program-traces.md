@@ -1,99 +1,23 @@
-# Expected traces for the three catalog programs
+# P1, P2 y P3
 
-These are static results and expected control-flow traces, not spreadsheet measurements. No CPU run, cache counters, page-fault log or dirty write-back was observed.
+Volver a [README.md](../README.md). Defensa: [GUIA_DEFENSA.md](GUIA_DEFENSA.md).
 
-Page size is 32 bytes. VPN = address >> 5. A first access to an absent page causes a page fault. A later access can fault again if that page was evicted. Cache misses and page faults are different events.
+Cifras leídas en la copia después de Load y Run, y conservadas tras `9ab18d4` en el caso de P3. No son una predicción de un borrador viejo. Ese borrador decía que el fetch no ejecutaba la imagen. La copia validada sí la ejecuta: las veinte pruebas dieron 0 fallos y los tres programas llegaron a `HLT`.
 
-The loader stores numeric machine bytes, while the current CPU fetch/decode path does not yet execute that byte stream correctly. The traces below describe the intended instruction semantics, not a successful loaded-program execution.
+## P1
 
-## Program 1 — arithmetic-ax-dx
+`AX = BX * CX` por sumas. DX conserva BX. Al terminar: PC `010`, AX `0C`, BX `04`, CX `00`, DX `04`, ZF 1. L1I: 26 aciertos y 2 fallos. `0C` es 12, que es 4 por 3. PC `010` es 16 en decimal: ocho instrucciones de 2 bytes.
 
-Static assembly result:
+## P2
 
-- Assembly succeeds.
-- 8 instructions in the listing.
-- 20 emitted bytes.
-- Code occupies VPN 0.
+`MOV CX, 08H` y ocho vueltas de `IN` / `OUT` / `DEC` / `JNZ`. Hay que encolar `HOLA` antes de Run. La cola muestra 72, 79, 76 y 65, que son H, O, L y A. Después del Run la cola queda vacía y el LCD queda `48 4F 4C 41 00 00 00 00`. Las cuatro lecturas que sobran, porque el lazo pide ocho bytes y solo había cuatro, devuelven `00` sin esperar y sin mover la cabeza. Borrar, usado antes de consumir la cola, saca la última tecla.
 
-Expected final registers under the intended instruction semantics:
-AX=0CH, BX=04H, CX=00H, DX=04H, ZF=1.
+## P3
 
-There are four setup instructions, three iterations of ADD/DEC/JNZ, and one HLT: 4 + 9 + 1 = 14 dynamic instructions.
+Once accesos a páginas distintas, sin usar la VPN 15. Datos: `40` vale 01, `A0` vale 02, `60` vale 03, `160` vale 04, `80` vale 0A. La suma `01+02` se guarda, y después `LD AX, [80H]` deja AX en `0A`. BX queda `02`, CX `03` y DX `04`.
 
-| Steps | Instructions | Expected paging behavior | Cache |
-|---|---|---|---|
-| 1–4 | MOV AX, MOV BX, MOV CX, MOV DX | First code fetch faults if VPN 0 starts absent | Not measured |
-| 5–13 | ADD AX, DX / DEC CX / JNZ loop, three iterations | No additional page is required | Not measured |
-| 14 | HLT | VPN 0 remains sufficient | Not measured |
+Fin: `HLT`, PC `016`, MAR `015`, IR `0800`, banderas en 0. 141 micro-pasos. Fallos de página, en orden: 0, 2, 5, 9, 14, 3, 7, 11, 0, 12, 4. Un write-back: VPN 9, marco 3. Caché: L1I 19 y 3 (86,4 %), L1D 0 y 9, L2 0 y 12.
 
-The third JNZ is not taken. No data-page access or dirty store is required by this program.
+`IR 0800` es el `HLT` (`08 00`). MAR `015` es la dirección del byte bajo de esa instrucción. PC ya avanzó a `016` durante el fetch. No es un registro a medias.
 
-## Program 2 — keyboard-lcd-echo
-
-Static assembly result:
-
-- Assembly succeeds.
-- 6 instructions in the listing.
-- 14 emitted bytes.
-- Code occupies VPN 0.
-
-The source executes MOV CX, 08H, eight iterations of IN/OUT/DEC/JNZ, and HLT. This is 1 + 32 + 1 = 34 dynamic instructions, not 26.
-
-| Steps | Instructions | Expected paging behavior | Cache |
-|---|---|---|---|
-| 1 | MOV CX, 08H | First code fetch faults if VPN 0 starts absent | Not measured |
-| 2–33 | IN, OUT, DEC, JNZ, eight iterations | No additional program-data VPN is required | Not measured |
-| 34 | HLT | VPN 0 remains sufficient | Not measured |
-
-The source does not stop on Enter (0DH) or on an empty-input value (00H). When peripheral access is allowed, an empty IN returns 00H without advancing the queue pointers. If the I/O guard rejects access, that is not a successful empty read.
-
-No LCD output was observed. The current personal physical-I/O opt-in is not a protected virtual-memory reservation. This document does not claim that the echo can run safely with paging enabled.
-
-## Program 3 — scattered-access
-
-Static assembly result:
-
-- Assembly succeeds.
-- 10 instructions in the listing.
-- 40 emitted bytes, including code and data.
-- Image size is 481 bytes because the image is sparse.
-- 9 distinct VPNs: 0, 2, 3, 5, 7, 9, 11, 14, 15.
-
-Code is in VPN 0. The other eight VPNs contain data.
-
-| Order | Instruction | Data VPN | Intended effect |
-|---|---|---|---|
-| 1 | LD AX, [40H] | 2 | Read data |
-| 2 | LD BX, [A0H] | 5 | Read data |
-| 3 | ADD AX, BX | None | Update AX |
-| 4 | ST [120H], AX | 9 | Write data and mark the resident page dirty |
-| 5 | ST [1C0H], BX | 14 | Write data and mark the resident page dirty |
-| 6 | LD CX, [60H] | 3 | Read data |
-| 7 | ST [E0H], CX | 7 | Write data and mark the resident page dirty |
-| 8 | LD DX, [160H] | 11 | Read data |
-| 9 | ST [1E0H], DX | 15 | Write data and mark the resident page dirty |
-| 10 | HLT | None | Stop |
-
-The assembler emits these store bytes:
-
-| Instruction | Bytes | VPN |
-|---|---|---|
-| ST [120H], AX | 08 01 20 00 | 9 |
-| ST [1C0H], BX | 08 01 C0 01 | 14 |
-| ST [E0H], CX | 08 E0 02 | 7 |
-| ST [1E0H], DX | 08 01 E0 03 | 15 |
-
-If all pages start absent, the intended execution needs at least nine first-touch page faults: one for code VPN 0 and eight for the distinct data VPNs. Additional faults are possible if an evicted page is accessed again, including the code page. Nine distinct VPNs do not establish an exact total fault count.
-
-With eight available pageable frames, reaching all nine VPNs requires at least one replacement. The selected victim depends on the replacement policy and actual access history. A clean victim does not require dirty write-back.
-
-Four store instructions do not prove that a dirty page was evicted. No victim, Swap write-back, cache hit count or cache miss count is claimed as measured.
-
-## Pending spreadsheet verification
-
-- [ ] Execute the programs after machine-byte fetch/decode is supported.
-- [ ] Record actual registers and instruction counts.
-- [ ] Record page faults and replacement victims.
-- [ ] Record cache hits and misses separately.
-- [ ] Verify a dirty victim is written back to Swap.
-- [ ] Verify keyboard/LCD access under a protected memory map before combining I/O with paging.
+El primer renglón del listado, `LD AX, [40H]`, es el texto `20 40` en `Programas!G5`. La etiqueta de fila `1E0` del mapa de la memoria virtual es el texto `1E0`, no el número 1.

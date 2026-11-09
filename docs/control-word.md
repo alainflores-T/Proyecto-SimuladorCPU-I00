@@ -1,29 +1,21 @@
 # Palabra de control
 
-Vector de 23 bits que la unidad de control emite en cada micro-paso.
-El bit más significativo es `En_PC`. Valor HEX de 6 dígitos + sufijo `H`.
+Volver a [arquitectura.md](arquitectura.md).
 
-Orden: En_PC, Ld_MAR, Mem_R, Mem_W, Ld_MDR, En_MDR, Ld_IR, En_ALU, Ld_AX, En_AX, Ld_BX, En_BX, Ld_CX, En_CX, Ld_DX, En_DX, Ld_PC, En_IR, En_MAR, INC_PC, IO, En_KBD, Ld_LCD.
+Cada micro-paso publica 28 señales, en este orden, cada una en 0 o en 1. El panel las concatena sin espacios. El bit de la izquierda es `En_PC`.
 
-| Fase / instrucción | Descripción | Señales activas | HEX |
-| --- | --- | --- | --- |
-| FETCH_1 | PC → MAR | En_PC, Ld_MAR | 600000H |
-| FETCH_2 | RAM → MDR (lectura) | Mem_R, Ld_MDR, En_MAR | 140010H |
-| FETCH_3a | MDR → IR | En_MDR, Ld_IR | 030000H |
-| FETCH_3b | PC + 1 | En_ALU, Ld_PC, INC_PC | 008048H |
-| DECODE | Decodificar IR | (ninguna) | 000000H |
-| MOV (reg) | Origen → destino (ej. MOV AX, BX) | En_BX, Ld_AX | 002200H |
-| MOV (imm) | Inmediato IR → destino (ej. MOV AX, imm) | En_IR, Ld_AX | 002004H |
-| ALU | Resultado ALU → destino (ej. AX) | En_ALU, Ld_AX | 00A000H |
-| CMP | ALU publica el resultado | En_ALU | 008000H |
-| JMP / Jcc tomado | Dirección IR → PC | En_IR, Ld_PC | 000014H |
-| Jcc no tomado | No hay transferencia | (ninguna) | 000000H |
-| LD T1 | Dirección (IR) → MAR | En_IR, Ld_MAR | 200004H |
-| LD T2 | RAM → MDR | Mem_R, Ld_MDR, En_MAR | 140010H |
-| LD T3 | MDR → registro (ej. AX) | En_MDR, Ld_AX | 022000H |
-| ST T1 | Dirección (IR) → MAR | En_IR, Ld_MAR | 200004H |
-| ST T2 | Dato (ej. AX) → MDR | En_AX, Ld_MDR | 041000H |
-| ST T3 | MDR → RAM (escritura) | Mem_W, En_MDR, En_MAR | 0A0010H |
-| NOP / HLT | Sin transferencias | (ninguna) | 000000H |
+`En_PC`, `Ld_MAR`, `Mem_R`, `Mem_W`, `Ld_MDR`, `En_MDR`, `Ld_IRH`, `Ld_IRL`, `En_ALU`, `Ld_ALU`, `Ld_AX`, `En_AX`, `Ld_BX`, `En_BX`, `Ld_CX`, `En_CX`, `Ld_DX`, `En_DX`, `Ld_PC`, `En_IR`, `En_MAR`, `INC_PC`, `IO`, `En_KBD`, `Ld_LCD`, `ALU2`, `ALU1`, `ALU0`.
 
-`En_MAR` se enciende en lecturas y escrituras porque MAR conduce el bus de direcciones (además de `Mem_R` o `Mem_W`). `En_KBD` y `Ld_LCD` quedan en 0 hasta el I/O (#33–#35).
+Señales que el código enciende en las fases fijas:
+
+| Fase | Señales |
+| --- | --- |
+| F1 y F4 | `En_PC`, `Ld_MAR`. La dirección interna sale de PC. |
+| F2 y F5 | `Mem_R`, `En_MAR`, `Ld_MDR`, `INC_PC`. PC aumenta. |
+| F3 | `En_MDR`, `Ld_IRH`. |
+| F6 | `En_MDR`, `Ld_IRL`. |
+| DECODE | Ninguna transferencia. Publica el texto de la instrucción. |
+
+En Execute las señales dependen de la operación. La ALU usa `ALU2`, `ALU1` y `ALU0` con este código: MOV 0, ADD 1, SUB 2, AND 3, OR 4, CMP 5, INC 6, DEC 7. CMP enciende la ALU y no carga el registro destino. `IN` enciende `IO`, `Mem_R` y `En_KBD`. `OUT` enciende `IO`, `Mem_W` y `Ld_LCD`.
+
+Un borrador anterior listaba 23 señales y un `Ld_IR` único, con códigos hexadecimales de 6 dígitos. Ese vector no es el de `SIM_SENALES`. Este archivo no repite esos hexadecimales.

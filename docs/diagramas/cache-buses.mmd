@@ -1,0 +1,21 @@
+flowchart LR
+  subgraph buses [Buses un emisor]
+    DI["Direccion interna 9 b"]
+    DATI["Datos internos 8 b"]
+    DE["Direccion fisica 8 b"]
+    DATE["Datos externos 8 b"]
+    CTRL["RD WR CK IO"]
+  end
+  CPU[CPU] --> DI
+  CPU --> DATI
+  DI --> MMU[MMU]
+  MMU --> DE
+  DE --> L1{"PA en E0-FF"}
+  L1 -->|no| L1I[L1I o L1D de 8 B]
+  L1I -->|miss| L2["L2 directa 4 lineas de 8 B"]
+  L2 -->|miss| RAM[RAM]
+  L1 -->|si| BYPASS["Sin cache: cuenta BYPASS"]
+  BYPASS --> RAM
+  RAM --> DATE
+  DATE --> CPU
+  CPU --> CTRL

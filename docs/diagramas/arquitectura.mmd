@@ -1,0 +1,47 @@
+flowchart LR
+  subgraph hoja [Hoja de calculo]
+    PANEL[PANEL]
+    PROG[Programas]
+    PERI[PERIFERICOS]
+    TRACE[TRACE 200]
+  end
+  subgraph estado [Unica imagen]
+    EST[_ESTADO]
+  end
+  subgraph cpu [CPU]
+    REG[PC MAR MDR IR AX BX CX DX]
+    ALU[ALU y banderas]
+    UC[Unidad de control]
+  end
+  subgraph mem [Memoria]
+    MMU[MMU]
+    RAM[RAM 256 B]
+    SWAP[Swap 512 B]
+    TABLA[16 paginas de 32 B]
+  end
+  subgraph cache [Cache fisica]
+    L1I[L1I 8 B]
+    L1D[L1D 8 B]
+    L2[L2 4 x 8 B]
+  end
+  subgraph es [Marco 7 fijo]
+    FIFO[FIFO F0-F7]
+    LCD[LCD F8-FF]
+  end
+  PANEL --> EST
+  PROG --> EST
+  PERI --> EST
+  TRACE --> EST
+  EST --> REG
+  REG --> ALU
+  UC --> REG
+  REG --> MMU
+  MMU --> L1I
+  MMU --> L1D
+  L1I --> L2
+  L1D --> L2
+  L2 --> RAM
+  RAM <--> SWAP
+  TABLA --> MMU
+  MMU --> FIFO
+  MMU --> LCD
