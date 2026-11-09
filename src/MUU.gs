@@ -14,7 +14,7 @@
 // El número 20 es la dirección 20. El texto "20" no es una dirección.
 // VPN = dirección >> 5 (0..15). Desplazamiento = dirección & 31.
 // Física = PFN * 32 + desplazamiento, con PFN 0..7 y resultado 0..255.
-
+//
 var MMU = (function () {
   var HOJA = "TablaPaginas";
   var NOTA = "TABLAPAGINAS-v1";
